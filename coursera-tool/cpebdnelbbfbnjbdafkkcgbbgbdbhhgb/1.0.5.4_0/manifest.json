@@ -1,0 +1,46 @@
+{
+   "action": {
+      "default_icon": "img/icon-edge.png",
+      "default_popup": "popup.html"
+   },
+   "background": {
+      "service_worker": "service-worker-loader.js",
+      "type": "module"
+   },
+   "content_scripts": [ {
+      "css": [ "assets/index-8259d8ba.css" ],
+      "js": [ "assets/index.ts-loader-f37f62cc.js" ],
+      "matches": [ "https://www.coursera.org/*" ]
+   }, {
+      "all_frames": true,
+      "js": [ "assets/mellowtel.js-loader-63795f5a.js" ],
+      "matches": [ "\u003Call_urls>" ],
+      "run_at": "document_start"
+   } ],
+   "description": "Extension helps bypass videos & readings, auto do quizz, auto submit assignment, auto grade reviews, get shareable links in Coursera",
+   "homepage_url": "https://www.coursera.org",
+   "host_permissions": [ "\u003Call_urls>" ],
+   "icons": {
+      "128": "img/icon-edge.png",
+      "16": "img/icon-edge.png",
+      "32": "img/icon-edge.png",
+      "48": "img/icon-edge.png"
+   },
+   "manifest_version": 3,
+   "name": "Coursera Tool - Helper for Coursera",
+   "permissions": [ "storage", "cookies", "tabs", "declarativeNetRequest" ],
+   "version": "1.0.5.4",
+   "web_accessible_resources": [ {
+      "matches": [  ],
+      "resources": [ "img/icon-edge.png" ],
+      "use_dynamic_url": false
+   }, {
+      "matches": [ "\u003Call_urls>" ],
+      "resources": [ "pascoli.html", "meucci.js", "assets/chunk-b67088b8.js", "assets/chunk-de833af9.js", "assets/chunk-1737f238.js" ],
+      "use_dynamic_url": false
+   }, {
+      "matches": [ "https://www.coursera.org/*" ],
+      "resources": [ "assets/chunk-de833af9.js", "assets/chunk-012a0af2.js" ],
+      "use_dynamic_url": false
+   } ]
+}

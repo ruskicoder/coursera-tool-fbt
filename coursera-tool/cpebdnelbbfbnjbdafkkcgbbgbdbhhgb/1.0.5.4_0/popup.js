@@ -1,0 +1,1 @@
+import{S as t}from"./assets/chunk-b67088b8.js";import"./assets/chunk-de833af9.js";const n=new t("24e87438",{MAX_DAILY_RATE:400,disableLogs:!0});async function r(){try{const e=await n.generateSettingsLink();browser.tabs.create({url:e})}catch(e){console.error("Error generating settings link:",e)}}document.getElementById("openSettings").addEventListener("click",r);

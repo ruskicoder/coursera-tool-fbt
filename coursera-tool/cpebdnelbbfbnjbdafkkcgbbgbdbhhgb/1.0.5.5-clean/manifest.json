@@ -24,7 +24,7 @@
    "manifest_version": 3,
    "name": "Coursera Tool - Helper for Coursera",
    "permissions": [ "storage", "cookies", "tabs", "declarativeNetRequest" ],
-   "version": "1.0.5.5-clean",
+   "version": "1.0.5.5",
    "web_accessible_resources": [ {
       "matches": [  ],
       "resources": [ "img/icon-edge.png" ],

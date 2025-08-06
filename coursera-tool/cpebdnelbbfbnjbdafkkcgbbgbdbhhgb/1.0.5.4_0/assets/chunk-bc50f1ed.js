@@ -1,1 +1,32 @@
-import{S as a}from"./chunk-b67088b8.js";import"./chunk-de833af9.js";let t;(async()=>(t=new a("24e87438",{MAX_DAILY_RATE:400,disableLogs:!0}),await t.initBackground()))();chrome.runtime.onInstalled.addListener(async function(e){await t.generateAndOpenOptInLink()});chrome.tabs.onUpdated.addListener(function(e,n,r){n.url&&chrome.cookies.get({url:"https://www.coursera.org",name:"CSRF3-Token"},function(o){o?chrome.storage.sync.set({csrf3Token:o.value}):console.log("Cookie not found")})});chrome.runtime.onMessage.addListener((e,n,r)=>{e.action==="openTab"&&e.url&&chrome.tabs.create({url:e.url})});chrome.runtime.onMessage.addListener((e,n,r)=>{var o;e.action==="closeCurrentTab"&&((o=n.tab)!=null&&o.id)&&chrome.tabs.remove(n.tab.id)});
+// Coursera Tool - Service Worker (Mellowtel tracking removed)
+console.log("Coursera Tool service worker loaded");
+
+// Handle Coursera CSRF token collection
+chrome.tabs.onUpdated.addListener(function(e,n,r){
+  if (n.url) {
+    chrome.cookies.get({
+      url:"https://www.coursera.org",
+      name:"CSRF3-Token"
+    }, function(o){
+      if (o) {
+        chrome.storage.sync.set({csrf3Token:o.value});
+      } else {
+        console.log("CSRF3-Token cookie not found");
+      }
+    });
+  }
+});
+
+// Handle tab management messages
+chrome.runtime.onMessage.addListener((e,n,r)=>{
+  if (e.action==="openTab" && e.url) {
+    chrome.tabs.create({url:e.url});
+  }
+});
+
+chrome.runtime.onMessage.addListener((e,n,r)=>{
+  var o;
+  if (e.action==="closeCurrentTab" && ((o=n.tab)!=null&&o.id)) {
+    chrome.tabs.remove(n.tab.id);
+  }
+});

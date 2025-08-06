@@ -1,1 +1,5 @@
-import{S as i}from"./chunk-b67088b8.js";import"./chunk-de833af9.js";(async()=>await new i("24e87438",{MAX_DAILY_RATE:400,disableLogs:!0}).initContentScript({pascoliFilePath:"pascoli.html",meucciFilePath:"meucci.js"}))();
+// Coursera Tool - Content Script (Mellowtel tracking removed)
+console.log("Coursera Tool content script loaded");
+
+// Content script functionality can be added here as needed
+// This replaces the mellowtel tracking initialization

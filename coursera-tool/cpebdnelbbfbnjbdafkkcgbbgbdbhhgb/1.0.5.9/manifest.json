@@ -1,7 +1,7 @@
 {
   "name": "Coursera Tool",
   "description": "Extension helps bypass videos & readings, auto do quizz, auto submit assignment, auto grade reviews, get shareable links in Coursera",
-  "version": "1.0.5.10",
+  "version": "1.0.5.9",
   "manifest_version": 3,
   "icons": {
     "48": "img/icon-edge.png"

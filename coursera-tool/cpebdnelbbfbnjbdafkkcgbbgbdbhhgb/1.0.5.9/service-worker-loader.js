@@ -1,5 +1,5 @@
 // Coursera Tool - Service Worker
-console.log("Coursera Tool service worker loaded - Version 1.0.5.10");
+console.log("Coursera Tool service worker loaded - Version 1.0.5.9");
 
 // Handle Coursera CSRF token collection
 const saveCSRFToken = async (name, key) => {

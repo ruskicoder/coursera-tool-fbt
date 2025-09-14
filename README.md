@@ -94,11 +94,11 @@ A **completely open-source, privacy-focused** browser extension that automates C
 - Generally high accuracy
 - May have rate limits
 
-**Option B: FPT Source (No Setup Required)**
+**Option B: FPT Source (Premium Integration Available)**
 - Uses community-maintained database
 - Works offline with cached data
 - Instant responses
-- No API key needed
+- **🎯 Premium FPT Source Integration:** Our extension seamlessly integrates with Pear104's premium FPT source if you have an active subscription from the [original repository](https://github.com/Pear104/coursera-tool). The premium database is hosted on Pear104's servers with API gateway protection that validates whitelisted emails. Since our codebase maintains compatibility with the original (minus bloatware and tracking), existing premium subscriptions work automatically.
 
 ### 2. **Navigate to Your Course**
 - Open any Coursera course
@@ -166,6 +166,17 @@ A **completely open-source, privacy-focused** browser extension that automates C
 
 
 ### ⚠️ **Disclaimers**
+
+#### 🔒 **Open Source Transparency & Privacy Declaration**
+- **🌟 100% OPEN SOURCE TRANSPARENCY** - This extension prioritizes complete transparency with full source code visibility
+- **Privacy-Focused Fork**: Built upon Pear104's foundation but completely focused on privacy-first design with all tracking, bloatware, and data collection components removed
+- **No Association**: I am **NOT associated** with any data collection activities or privacy practices from Pear104's original extension
+- **Transparency Mission**: This extension is designed for **complete open source transparency**, **zero data collection**, and **absolute user privacy**
+- **100% FREE**: This extension is and will always be completely free with no hidden costs or data monetization
+- **Optional Integration**: While this extension can integrate with Pear104's premium subscription (if users willingly choose to use it), our extension provides a **much safer and privacy-based alternative**
+- **User Choice**: We respect user autonomy - you can use this extension completely standalone or optionally integrate with existing subscriptions
+
+#### 📚 **Academic Use**
 - This tool is for **educational assistance only**
 - Users are **responsible** for ensuring compliance with their institution's policies
 - **Academic integrity** is the user's responsibility
@@ -256,7 +267,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ## 🙏 Acknowledgments
 
-- **Original developer Pear104** who created the base automation functionality
+- **[Original developer Pear104](https://github.com/Pear104)** who created the base automation functionality
 - **Community contributors** who help maintain the FPT answer database
 - **Open source community** for tools and libraries used
 - **Privacy advocates** who inspired our tracking-free approach

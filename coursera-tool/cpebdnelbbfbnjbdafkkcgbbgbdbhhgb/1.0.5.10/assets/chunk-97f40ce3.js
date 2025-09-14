@@ -20994,21 +20994,20 @@ function Ie(e, n) {
         Ie(e, n)
     );
 }
-const waitForElement = async (selector) => {
-    const decodeString = Ie;
-    // Wait for element to exist in DOM
-    while (document[decodeString(430)](selector) === null) {
+const waitForSelector = async (selector) => {
+    // Wait for the first matching element to exist in the DOM
+    while (document.querySelector(selector) === null) {
         await new Promise((resolve) => requestAnimationFrame(resolve));
     }
-    return document[decodeString(430)](selector);
+    return document.querySelector(selector);
 };
-// Extension initialization - Wait for DOM and inject React component
-waitForElement(ci(439))[ci(426)]((element) => {
-    const decodeString = ci,
-        config = { extensionId: "coursera-tool", zIndex: decodeString(444) },
-        container = document[decodeString(427)](decodeString(434));
-    // Create and inject extension container
-    (container.id = config.extensionId), (container.style.zIndex = config[decodeString(452)]), element[decodeString(450)](container), reactDOM.createRoot(container)[decodeString(456)](React.createElement(MainComponent));
+// Initialize the extension UI: wait for DOM, create container, and render the React component
+waitForSelector("html").then((rootElement) => {
+    const container = document.createElement("div");
+    container.id = "coursera-tool";
+    container.style.zIndex = "10001";
+    rootElement.appendChild(container);
+    reactDOM.createRoot(container).render(React.createElement(MainComponent));
 });
 // Export main extension functions for use by other modules
 export {

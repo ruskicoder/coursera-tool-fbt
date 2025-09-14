@@ -1,51 +1,48 @@
 // Coursera Tool - Service Worker
 console.log("Coursera Tool service worker loaded - Version 1.0.5.10");
 
-// Handle Coursera CSRF token collection
-const saveCSRFToken = async (name, key) => {
-  await chrome.cookies.get({
-    url: "https://www.coursera.org",
-    name: name
-  }, async function(cookie) {
+// Persist specific Coursera cookies into extension storage for later API calls
+async function persistCookieToSyncStorage(cookieName, storageKey) {
+  await chrome.cookies.get({ url: "https://www.coursera.org", name: cookieName }, async (cookie) => {
     if (cookie) {
-      await chrome.storage.sync.set({[key]: cookie.value});
+      await chrome.storage.sync.set({ [storageKey]: cookie.value });
     }
   });
-};
+}
 
-// Listen for tab updates to collect tokens
-chrome.tabs.onUpdated.addListener(async function(tabId, changeInfo, tab) {
+// When a tab URL changes, refresh cached tokens
+chrome.tabs.onUpdated.addListener(async (_tabId, changeInfo) => {
   if (changeInfo.url) {
-    await saveCSRFToken("CSRF3-Token", "csrf3Token");
-    await saveCSRFToken("CAUTH", "CAUTH");
+    await persistCookieToSyncStorage("CSRF3-Token", "csrf3Token");
+    await persistCookieToSyncStorage("CAUTH", "CAUTH");
   }
 });
 
-// Handle messages from content scripts
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+// Lightweight message router used by the content scripts
+chrome.runtime.onMessage.addListener((message, sender) => {
   if (message.action === "openTab" && message.url) {
-    chrome.tabs.create({url: message.url});
+    chrome.tabs.create({ url: message.url });
   }
 });
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === "closeCurrentTab" && sender.tab?.id) {
+chrome.runtime.onMessage.addListener((message, sender) => {
+  if (message.action === "closeCurrentTab" && sender.tab && sender.tab.id) {
     chrome.tabs.remove(sender.tab.id);
   }
 });
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message) => {
   if (message.action === "openBackgroundTab" && message.url) {
-    chrome.tabs.create({url: message.url, active: false});
+    chrome.tabs.create({ url: message.url, active: false });
   }
 });
 
-// Handle metadata requests
-chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+// Handle metadata requests by ensuring tokens are cached
+chrome.runtime.onMessage.addListener(async (message, _sender, sendResponse) => {
   if (message.action === "getMetadata") {
-    await saveCSRFToken("CSRF3-Token", "csrf3Token");
-    await saveCSRFToken("CAUTH", "CAUTH");
-    sendResponse({status: "ok"});
+    await persistCookieToSyncStorage("CSRF3-Token", "csrf3Token");
+    await persistCookieToSyncStorage("CAUTH", "CAUTH");
+    sendResponse({ status: "ok" });
   }
   return true;
 });

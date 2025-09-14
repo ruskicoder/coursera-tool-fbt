@@ -61,15 +61,14 @@ A **completely open-source, privacy-focused** browser extension that automates C
    ```
 
 2. **Choose your version**:
-   - `1.0.5.10-clean/` - **Latest with FPT source enabled** (Recommended)
-   - `1.0.5.9/` - Stable version without FPT source
-   - `1.0.5.4/` - Original cleaned version
+   - `1.0.5.9/` - **Latest stable version** (Recommended)
+   - `1.0.5.5/` - Original cleaned version
 
 3. **Load in Chrome/Edge**:
    - Open `chrome://extensions/` (or `edge://extensions/`)
    - Enable "Developer mode" (top-right toggle)
    - Click "Load unpacked"
-   - Select the version folder (e.g., `coursera-tool/cpebdnelbbfbnjbdafkkcgbbgbdbhhgb/1.0.5.10-clean/`)
+   - Select the version folder (e.g., `coursera-tool/cpebdnelbbfbnjbdafkkcgbbgbdbhhgb/1.0.5.9/`)
 
 4. **Verify installation**:
    - Extension icon should appear in your browser toolbar
@@ -174,13 +173,14 @@ A **completely open-source, privacy-focused** browser extension that automates C
 
 ## 📋 Changelog
 
-### Version 1.0.5.10 (Latest) - September 13, 2025
-**🎉 Major Update: FPT Source Enabled**
-- ✅ **Unlocked FPT source functionality** - access to community answer databases
-- ✅ **GitHub Pages integration** - direct access to pear104.github.io databases
-- ✅ **No server restrictions** - removed permission checks for FPT access
-- ✅ **Enhanced answer sources** - choice between AI and community databases
-- ✅ **Improved reliability** - better fallback handling between sources
+### Version 1.0.5.9-stable (Latest) - September 15, 2025
+**🎉 UI Cleanup & Customization**
+- ✅ **Clean interface** - removed unwanted footer elements for distraction-free experience
+- ✅ **Enhanced auto-quiz AI model** - Automatic quiz completion now uses latest Gemini 2.5 Flash for more accurate answers
+- ✅ **Improved AI instruction prompt** - API requests now includes detailed instruction prompts, ensuring no yapping, false positives, and hallucinations
+- ✅ **Performance optimized** - minified injection code for instant element processing
+- ✅ **Smart detection** - aggressive element removal with automatic completion detection
+- ❌ **Facebook Support removed** - eliminated social media distractions completely, ensure no bloatware or scams
 
 ### Version 1.0.5.9 - Bloat removal
 **🧹 Mellowtel Cleanup**

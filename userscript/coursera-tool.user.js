@@ -1107,6 +1107,89 @@ progress::-webkit-progress-value {
     const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     /**
+     * Auto-submit helper - clicks agreement checkbox, waits, then submits
+     * @param {number} delay - Delay in ms between checkbox and submit (default 4000ms)
+     */
+    const autoSubmitWithAgreement = async (delay = 4000) => {
+        try {
+            console.log('Coursera Tool: Starting auto-submit sequence...');
+            
+            // Step 1: Find and click the agreement checkbox
+            const checkboxSelectors = [
+                'input[id="agreement-checkbox-base"]',
+                'input[type="checkbox"][required]',
+                '[data-testid="agreement-checkbox"] input[type="checkbox"]',
+                '[data-testid="agreement-standalone-checkbox"] input[type="checkbox"]'
+            ];
+            
+            let checkbox = null;
+            for (const selector of checkboxSelectors) {
+                checkbox = document.querySelector(selector);
+                if (checkbox) {
+                    console.log(`Coursera Tool: Found checkbox with selector: ${selector}`);
+                    break;
+                }
+            }
+            
+            if (checkbox && !checkbox.checked) {
+                console.log('Coursera Tool: Clicking agreement checkbox...');
+                checkbox.click();
+                console.log('Coursera Tool: ✓ Checkbox clicked');
+                
+                // Wait for the submit button to become enabled
+                console.log(`Coursera Tool: Waiting ${delay}ms for submit button to enable...`);
+                await wait(delay);
+            } else if (checkbox && checkbox.checked) {
+                console.log('Coursera Tool: Checkbox already checked');
+                await wait(1000); // Short wait if already checked
+            } else {
+                console.log('Coursera Tool: No agreement checkbox found, proceeding to submit...');
+                await wait(1000);
+            }
+            
+            // Step 2: Find and click the submit button
+            const submitSelectors = [
+                'button[data-testid="submit-button"]',
+                'button[data-test="submit-button"]',
+                'button[aria-label="Submit"]',
+                'button.cds-button-primary:has-text("Submit")'
+            ];
+            
+            let submitBtn = null;
+            for (const selector of submitSelectors) {
+                submitBtn = document.querySelector(selector);
+                if (submitBtn) {
+                    console.log(`Coursera Tool: Found submit button with selector: ${selector}`);
+                    break;
+                }
+            }
+            
+            if (submitBtn) {
+                // Check if button is disabled
+                const isDisabled = submitBtn.disabled || submitBtn.getAttribute('aria-disabled') === 'true';
+                if (isDisabled) {
+                    console.warn('Coursera Tool: Submit button is still disabled, waiting longer...');
+                    await wait(2000);
+                }
+                
+                console.log('Coursera Tool: Clicking submit button...');
+                submitBtn.click();
+                console.log('Coursera Tool: ✓ Submit button clicked');
+                toast.success('Quiz submitted!');
+                return true;
+            } else {
+                console.error('Coursera Tool: Submit button not found');
+                toast.error('Submit button not found');
+                return false;
+            }
+        } catch (e) {
+            console.error('Coursera Tool: Auto-submit error:', e);
+            toast.error('Auto-submit failed');
+            return false;
+        }
+    };
+
+    /**
      * Wait for a DOM selector to appear
      */
     const waitForSelector = (selector, timeout = 5000) => {
@@ -1124,6 +1207,127 @@ progress::-webkit-progress-value {
                 reject(new Error(`Timeout waiting for selector: ${selector} after ${timeout}ms`));
             }, timeout);
         });
+    };
+
+    /**
+     * Auto-submit quiz with checkbox agreement and confirmation dialog
+     * 1. Finds and clicks the agreement checkbox
+     * 2. Waits 3-5 seconds for submit button to enable
+     * 3. Clicks the first submit button
+     * 4. Waits 1 second for confirmation dialog
+     * 5. Clicks the second submit button in the dialog
+     */
+    const autoSubmitQuiz = async () => {
+        try {
+            console.log('Coursera Tool: Starting auto-submit process...');
+            
+            // Step 1: Find and click the agreement checkbox
+            const checkboxSelectors = [
+                'input[id="agreement-checkbox-base"]',
+                'input[type="checkbox"][required]',
+                '[data-testid="agreement-checkbox"] input[type="checkbox"]',
+                '[data-testid="agreement-standalone-checkbox"] input[type="checkbox"]',
+                '.honor-code-agreement input[type="checkbox"]'
+            ];
+            
+            let checkbox = null;
+            for (const selector of checkboxSelectors) {
+                checkbox = document.querySelector(selector);
+                if (checkbox) {
+                    console.log(`Coursera Tool: Found checkbox with selector: ${selector}`);
+                    break;
+                }
+            }
+            
+            if (checkbox && !checkbox.checked) {
+                console.log('Coursera Tool: Clicking agreement checkbox...');
+                checkbox.click();
+                console.log('Coursera Tool: ✓ Checkbox clicked');
+                toast.success('Agreement checkbox checked');
+            } else if (checkbox && checkbox.checked) {
+                console.log('Coursera Tool: Checkbox already checked');
+            } else {
+                console.warn('Coursera Tool: Agreement checkbox not found');
+            }
+            
+            // Step 2: Wait 3-5 seconds for submit button to enable
+            const waitTime = 4000; // 4 seconds (middle of 3-5 range)
+            console.log(`Coursera Tool: Waiting ${waitTime}ms for submit button to enable...`);
+            await wait(waitTime);
+            
+            // Step 3: Find and click first submit button
+            const submitSelectors = [
+                'button[data-testid="submit-button"]',
+                'button[data-test="submit-button"]',
+                'button[aria-label="Submit"]',
+                'button.cds-button-primary:has(.cds-button-label)',
+                'button:contains("Submit")'
+            ];
+            
+            let submitBtn1 = null;
+            for (const selector of submitSelectors) {
+                submitBtn1 = document.querySelector(selector);
+                if (submitBtn1) {
+                    console.log(`Coursera Tool: Found first submit button with selector: ${selector}`);
+                    break;
+                }
+            }
+            
+            if (submitBtn1) {
+                // Check if button is disabled
+                const isDisabled = submitBtn1.disabled || submitBtn1.getAttribute('aria-disabled') === 'true';
+                if (isDisabled) {
+                    console.warn('Coursera Tool: Submit button is still disabled, waiting longer...');
+                    await wait(2000); // Wait another 2 seconds
+                }
+                
+                console.log('Coursera Tool: Clicking first submit button...');
+                submitBtn1.click();
+                console.log('Coursera Tool: ✓ First submit button clicked');
+                toast.success('First submit clicked, waiting for confirmation dialog...');
+            } else {
+                console.error('Coursera Tool: First submit button not found');
+                toast.error('Submit button not found');
+                return;
+            }
+            
+            // Step 4: Wait 1 second for confirmation dialog to appear
+            console.log('Coursera Tool: Waiting 1s for confirmation dialog...');
+            await wait(1000);
+            
+            // Step 5: Find and click second submit button in dialog
+            const dialogSubmitSelectors = [
+                'button[data-testid="dialog-submit-button"]',
+                'button[data-test="dialog-submit-button"]',
+                '[role="dialog"] button[data-testid="submit-button"]',
+                '[role="dialog"] button.cds-button-primary',
+                '.cds-modal button.cds-button-primary',
+                'div[role="dialog"] button:contains("Submit")'
+            ];
+            
+            let submitBtn2 = null;
+            for (const selector of dialogSubmitSelectors) {
+                submitBtn2 = document.querySelector(selector);
+                if (submitBtn2) {
+                    console.log(`Coursera Tool: Found dialog submit button with selector: ${selector}`);
+                    break;
+                }
+            }
+            
+            if (submitBtn2) {
+                console.log('Coursera Tool: Clicking dialog submit button...');
+                submitBtn2.click();
+                console.log('Coursera Tool: ✓ Dialog submit button clicked');
+                toast.success('Quiz submitted successfully!');
+            } else {
+                console.warn('Coursera Tool: Dialog submit button not found - quiz may already be submitted');
+                toast.success('Quiz submitted!');
+            }
+            
+        } catch (error) {
+            console.error('Coursera Tool: Auto-submit error:', error);
+            toast.error('Auto-submit failed: ' + error.message);
+        }
     };
 
     /**
@@ -1596,11 +1800,7 @@ progress::-webkit-progress-value {
             // Auto Submit if configured
             const { isAutoSubmitQuiz } = await chrome.storage.local.get("isAutoSubmitQuiz");
             if (isAutoSubmitQuiz) {
-                const submitBtn = document.querySelector("button[data-test='submit-button']");
-                if (submitBtn) {
-                    await wait(1000);
-                    submitBtn.click();
-                }
+                await autoSubmitQuiz();
             }
 
         } catch (e) {
@@ -1789,11 +1989,7 @@ progress::-webkit-progress-value {
             // Auto Submit if configured
             const { isAutoSubmitQuiz } = await chrome.storage.local.get("isAutoSubmitQuiz");
             if (isAutoSubmitQuiz) {
-                const submitBtn = document.querySelector("button[data-test='submit-button']");
-                if (submitBtn) {
-                    await wait(1000);
-                    submitBtn.click();
-                }
+                await autoSubmitQuiz();
             }
 
         } catch (e) {

@@ -430,6 +430,19 @@
         }
     };
 
+    // Create global chrome shim for compatibility
+    if (typeof window.chrome === 'undefined') {
+        window.chrome = {};
+    }
+    
+    window.chrome.storage = chromeStorageShim;
+    window.chrome.runtime = chromeRuntimeShim;
+    window.chrome.cookies = chromeCookiesShim;
+    window.chrome.tabs = chromeTabsShim;
+
+    // Store original fetch BEFORE creating fetchWithCORS
+    const originalFetch = window.fetch;
+
     /**
      * Fetch API wrapper with GM_xmlhttpRequest for CORS bypass
      * Automatically falls back to GM_xmlhttpRequest for cross-origin requests
@@ -439,9 +452,9 @@
         const urlObj = new URL(url, window.location.href);
         const isCrossOrigin = urlObj.origin !== window.location.origin;
         
-        // For same-origin requests, use native fetch
+        // For same-origin requests, use ORIGINAL native fetch
         if (!isCrossOrigin) {
-            return fetch(url, options);
+            return originalFetch(url, options);  // Use originalFetch, not fetch!
         }
         
         // For cross-origin requests, use GM_xmlhttpRequest
@@ -488,21 +501,10 @@
         });
     };
 
-    // Create global chrome shim for compatibility
-    if (typeof window.chrome === 'undefined') {
-        window.chrome = {};
-    }
-    
-    window.chrome.storage = chromeStorageShim;
-    window.chrome.runtime = chromeRuntimeShim;
-    window.chrome.cookies = chromeCookiesShim;
-    window.chrome.tabs = chromeTabsShim;
-
     // Replace global fetch with CORS-capable version
-    const originalFetch = window.fetch;
     window.fetch = fetchWithCORS;
     
-    // Store original fetch for same-origin requests
+    // Store original fetch for direct access if needed
     window.fetch.original = originalFetch;
 
     // ==========================================
@@ -536,7 +538,14 @@
             success: (msg) => console.log('✓', msg),
             error: (msg) => console.error('✗', msg),
             warning: (msg) => console.warn('⚠', msg),
-            loading: (msg) => console.log('⏳', msg)
+            loading: (msg) => console.log('⏳', msg),
+            promise: (promise, msgs) => {
+                console.log('⏳', msgs.loading);
+                return promise.then(
+                    result => { console.log('✓', msgs.success); return result; },
+                    error => { console.error('✗', msgs.error); throw error; }
+                );
+            }
         };
         Toaster = () => null; // Dummy component
     }
@@ -1368,10 +1377,19 @@ progress::-webkit-progress-value {
     
     /**
      * Get authentication details and perform telemetry
+     * This is optional telemetry - failures are non-fatal
      */
     const getAuthDetails = async (refresh = true) => {
         try {
             const metadataReq = await fetch(CONSTANTS.METADATA_URL);
+            
+            // Check if response is valid JSON
+            const contentType = metadataReq.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                console.warn('Coursera Tool: Metadata endpoint returned non-JSON response, skipping telemetry');
+                return false;
+            }
+            
             const metadata = await metadataReq.json();
             
             // Log user details (Telemetry from original extension)
@@ -1399,7 +1417,7 @@ progress::-webkit-progress-value {
             }
             return true;
         } catch (e) {
-            console.error('getAuthDetails error:', e);
+            console.warn('Coursera Tool: Telemetry failed (non-fatal):', e.message);
             return false;
         }
     };
@@ -1409,20 +1427,50 @@ progress::-webkit-progress-value {
      */
     const getCourseMetadata = async () => {
         // Extract Slug from URL
-        // URL Format: coursera.org/learn/[slug]/...
-        const pathParts = window.location.pathname.split("/");
-        const slug = pathParts[2] === "learn" ? pathParts[3] : pathParts[4]; 
+        // URL Format: coursera.org/learn/[slug]/... or coursera.org/programs/[program]/courses/[slug]/...
+        const pathParts = window.location.pathname.split("/").filter(p => p); // Remove empty parts
+        
+        let slug = null;
+        
+        // Find "learn" in the path and get the next part
+        const learnIndex = pathParts.indexOf("learn");
+        if (learnIndex !== -1 && learnIndex + 1 < pathParts.length) {
+            slug = pathParts[learnIndex + 1];
+        }
+        
+        // Fallback: try to find "courses" in the path
+        if (!slug) {
+            const coursesIndex = pathParts.indexOf("courses");
+            if (coursesIndex !== -1 && coursesIndex + 1 < pathParts.length) {
+                slug = pathParts[coursesIndex + 1];
+            }
+        }
+        
+        if (!slug) {
+            throw new Error('Could not extract course slug from URL. Please navigate to a course page.');
+        }
+        
+        console.log(`Coursera Tool: Extracted course slug: ${slug}`);
 
         // Fetch Course Materials API
         const url = `https://www.coursera.org/api/onDemandCourseMaterials.v2/?q=slug&slug=${slug}&includes=modules,lessons,passableItemGroups,passableItemGroupChoices,passableLessonElements,items,tracks,gradePolicy,gradingParameters,embeddedContentMapping&fields=moduleIds,onDemandCourseMaterialModules.v1(name,slug,description,timeCommitment,lessonIds,optional,learningObjectives),onDemandCourseMaterialLessons.v1(name,slug,timeCommitment,elementIds,optional,trackId),onDemandCourseMaterialPassableItemGroups.v1(requiredPassedCount,passableItemGroupChoiceIds,trackId),onDemandCourseMaterialPassableItemGroupChoices.v1(name,description,itemIds),onDemandCourseMaterialPassableLessonElements.v1(gradingWeight,isRequiredForPassing),onDemandCourseMaterialItems.v2(name,originalName,slug,timeCommitment,contentSummary,isLocked,lockableByItem,itemLockedReasonCode,trackId,lockedStatus,itemLockSummary),onDemandCourseMaterialTracks.v1(passablesCount),onDemandGradingParameters.v1(gradedAssignmentGroups),contentAtomRelations.v1(embeddedContentSourceCourseId,subContainerId)&showLockedItems=true`;
         
+        console.log(`Coursera Tool: Fetching course materials from API...`);
         const response = await fetch(url).then(r => r.json());
+        
+        // Check if response is valid
+        if (!response || !response.linked || !response.linked["onDemandCourseMaterialModules.v1"]) {
+            console.error('Coursera Tool: Invalid API response:', response);
+            throw new Error('Failed to fetch course materials. The API response was invalid.');
+        }
         
         // The Course ID is usually linked in the modules
         const courseId = response.linked["onDemandCourseMaterialModules.v1"][0].id;
         
+        console.log(`Coursera Tool: Course ID: ${courseId}`);
+        
         return {
-            materials: response.elements,
+            materials: response.elements || [],
             courseId: courseId,
             slug: slug
         };
@@ -1533,18 +1581,25 @@ progress::-webkit-progress-value {
      * @param {Function} setLoadingStatus - React state setter for loading status
      */
     const bypassCourseContent = async (setLoadingStatus) => {
-        const userId = getUserId();
-        if (!userId) {
-            toast.error("Could not find User ID. Refresh page.");
-            return;
-        }
+        try {
+            const userId = getUserId();
+            if (!userId) {
+                toast.error("Could not find User ID. Refresh page.");
+                return;
+            }
 
-        const { materials, courseId } = await getCourseMetadata();
-        await getAuthDetails(); // Telemetry check
+            const { materials, courseId } = await getCourseMetadata();
+            await getAuthDetails(); // Telemetry check
 
-        setLoadingStatus(prev => ({...prev, isLoadingCompleteWeek: true}));
+            setLoadingStatus(prev => ({...prev, isLoadingCompleteWeek: true}));
 
         const promises = materials.map(async (item) => {
+            // Skip items without contentSummary
+            if (!item || !item.contentSummary || !item.contentSummary.typeName) {
+                console.log('Coursera Tool: Skipping item without contentSummary:', item?.id);
+                return;
+            }
+            
             const type = item.contentSummary.typeName;
             const itemId = item.id;
 
@@ -1582,15 +1637,21 @@ progress::-webkit-progress-value {
             }
         });
 
-        await toast.promise(Promise.all(promises), {
-            loading: 'Skipping Videos & Readings...',
-            success: 'Completed!',
-            error: 'Some items failed.'
-        });
+            await toast.promise(Promise.all(promises), {
+                loading: 'Skipping Videos & Readings...',
+                success: 'Completed!',
+                error: 'Some items failed.'
+            });
 
-        setLoadingStatus(prev => ({...prev, isLoadingCompleteWeek: false}));
-        // Reload to reflect changes
-        setTimeout(() => window.location.reload(), 1000);
+            setLoadingStatus(prev => ({...prev, isLoadingCompleteWeek: false}));
+            // Reload to reflect changes
+            setTimeout(() => window.location.reload(), 1000);
+            
+        } catch (error) {
+            console.error('Coursera Tool: Bypass course content error:', error);
+            toast.error(error.message || 'Failed to complete week. Please try again.');
+            setLoadingStatus(prev => ({...prev, isLoadingCompleteWeek: false}));
+        }
     };
 
     /**

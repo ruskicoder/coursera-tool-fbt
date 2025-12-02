@@ -137,150 +137,52 @@ Convert the deobfuscated Coursera Chrome extension into a fully-functional Tampe
   - Test UI rendering with all styles
   - _Requirements: Toasts work, UI styled correctly_
 
-### Phase 4: Initialization, Utilities & Polish
-**Goal:** Complete initialization logic, footer cleaner, and final touches
+### Phase 4: Complete Function Flow Adaptation
 
-- [ ] 4.1 Implement initialization and page navigation handling
-  - Create main initialization function
-  - Check for Coursera domain
-  - Create React root container and mount app
-  - Start footer cleaner
-  - Start auto-join checker
-  - Listen for Coursera SPA navigation events (popstate, pushstate, replacestate)
-  - Re-run initialization on navigation if needed
-  - _Requirements: Userscript initializes correctly, works with SPA navigation_
+**Goal:** Implement all remaining functions from function-flow.txt with full AI-powered assignment handling
 
-- [ ] 4.2 Port footer link cleaner and misc utilities
-  - Copy the self-invoking footer cleanup function
-  - Test link redirection to source code
-  - Test spam link removal (Facebook links)
-  - Set up MutationObserver for dynamic content
-  - Copy appendNotSupported() for text inputs
-  - Copy collectUnmatchedQuestion() for crowdsourcing
-  - _Requirements: Footer links cleaned, utilities work_
+- [ ] 4.1 Complete UI with method selection and all buttons
+  - Add "Get URL" button → handleReview()
+  - Add "Disable AI" button → requestGradingByPeer()
+  - Update "Auto Grade" button → AI-powered handlePeerGradedAssignment()
+  - Store selected method and course in settings with proper loading states
+  - _Requirements: Complete UI with all automation features from function-flow.txt_
 
-- [ ] 4.3 Add optimization and error handling
-  - Optimize bundle size (remove unused code)
-  - Add console logging (version on load, debug logs)
-  - Wrap React app in error boundary
-  - Handle React errors gracefully
-  - Test error handling with missing API key
-  - Test error handling with network errors
-  - _Requirements: Optimized, debuggable, graceful error handling_
+- [ ] 4.2 Implement AI-powered assignment automation
+  - Extract assignment instructions from DOM (div[data-testid="peer-assignment-instructions"]) and form fields
+  - Parse "Grading Criteria Overview" and "Step-By-Step Assignment Instructions" sections
+  - Use Gemini AI to generate contextual answers (under 50 characters per field as per assignment-flow.txt)
+  - Fill text fields (contenteditable divs and textareas) with AI-generated content
+  - Handle intelligent file uploads (detect accept attribute, generate appropriate dummy files)
+  - Submit assignment with confirmation
+  - _Requirements: AI-powered assignment completion from function-flow.txt and assignment-flow.txt_
 
-### Phase 5: Comprehensive Testing & Validation
-**Goal:** Test all features end-to-end on actual Coursera pages
+- [ ] 4.3 Implement assignment utility functions
+  - Create requestGradingByPeer() to disable AI grading via GraphQL mutation with "EXPECTED_HIGHER_SCORE" reason
+  - Create handleReview() to get shareable URL (switch to "My Submission" tab, trigger share modal, copy link)
+  - Create triggerShareModal() helper (find/click Share button, handle modal, extract link)
+  - _Requirements: Assignment management functions from function-flow.txt_
 
-- [ ] 5.1 Test quiz automation features
-  - Test Gemini solver on quiz pages
-  - Test Source solver on quiz pages
-  - Test answer application for all question types
-  - Test auto-submit functionality
-  - Test with missing API key (error handling)
-  - _Requirements: Quiz automation works end-to-end_
+- [ ] 4.4 Implement Source Database solver with encryption
+  - Create decryptSourceData() using Web Crypto API for AES-CBC decryption (handle base64, extract IV)
+  - Create fetchAnswersFromSource() to fetch and decrypt course-specific answer data
+  - Create doWithSource() to match questions to answers, apply to form inputs, add visual badges
+  - Create getSource() to check database access, fetch course map, validate user access
+  - _Requirements: Alternative quiz solver using encrypted database from function-flow.txt_
 
-- [ ] 5.2 Test content bypass and assignment features
-  - Test video/reading bypass on course pages
-  - Verify progress updates correctly
-  - Test peer review automation
-  - Test assignment submission
-  - Test discussion prompt automation
-  - Verify forum posts appear
-  - _Requirements: All content features work_
+- [ ] 4.5 Enhance quiz automation with full navigation
+  - Add "Start" button detection and clicking
+  - Implement question navigation with "Next" button handling and index tracking ("Question 1 of 10")
+  - Loop through all questions until completion
+  - Handle "Continue" button for resumed attempts
+  - Verify all questions answered before submission
+  - _Requirements: Complete quiz automation with navigation from function-flow.txt_
 
-- [ ] 5.3 Test UI and cross-browser compatibility
-  - Test all buttons in control panel
-  - Test settings persistence
-  - Test panel dragging/minimizing
-  - Test in Chrome + Tampermonkey
-  - Test in Firefox + Tampermonkey/Greasemonkey
-  - Test in Edge + Tampermonkey
-  - _Requirements: UI fully functional, works in all browsers_
+- [ ] 4.6 Add comprehensive error handling and testing
+  - Wrap all API calls in try-catch blocks with user-friendly toast messages
+  - Implement retry logic for network failures and rate limiting
+  - Test all automation features on live Coursera pages (AI assignments, quiz solving with both methods, peer reviews, discussions)
+  - Verify settings persistence across page reloads
+  - _Requirements: Robust error handling and end-to-end testing from function-flow.txt_ 
 
-- [ ] 5.4 Validate feature parity and create release
-  - Verify all extension features work in userscript
-  - Compare behavior side-by-side with extension
-  - Clean up code comments
-  - Add version number and metadata
-  - Create final userscript file
-  - _Requirements: 100% feature parity, production-ready_
 
-### Phase 6: Documentation & Delivery
-**Goal:** Create comprehensive documentation for users
-
-- [ ] 6.1 Create user documentation
-  - Document Tampermonkey installation steps
-  - Document userscript installation steps
-  - Document Gemini API key setup process
-  - Document each feature and how to use it
-  - Add screenshots of UI and features
-  - Document all settings options
-  - _Requirements: Clear installation and usage docs_
-
-- [ ] 6.2 Create troubleshooting and ethical guidelines
-  - List common issues and solutions
-  - Explain how to check console for errors
-  - Explain how to report bugs
-  - Add ethical usage disclaimer
-  - Explain academic integrity concerns
-  - Recommend responsible usage
-  - Clarify educational purposes
-  - _Requirements: Users can troubleshoot, ethical considerations addressed_
-
-## Technical Notes
-
-### Chrome API → Tampermonkey Mapping
-```javascript
-// Storage
-chrome.storage.local.get()  → GM_getValue()
-chrome.storage.local.set()  → GM_setValue()
-
-// Tabs
-chrome.tabs.create()        → GM_openInTab()
-chrome.tabs.remove()        → window.close()
-
-// Cookies
-chrome.cookies.get()        → document.cookie parsing
-
-// Network
-fetch() with CORS issues    → GM_xmlhttpRequest()
-
-// Runtime
-chrome.runtime.getURL()     → Not needed (single file)
-chrome.runtime.sendMessage()→ Direct function calls
-```
-
-### Required @grant Permissions
-```javascript
-// @grant        GM_setValue
-// @grant        GM_getValue
-// @grant        GM_deleteValue
-// @grant        GM_xmlhttpRequest
-// @grant        GM_openInTab
-// @grant        GM_addStyle
-// @grant        GM_getResourceText
-// @grant        window.close
-```
-
-### Dependency Strategy
-**Option A: CDN @require (Recommended)**
-```javascript
-// @require      https://unpkg.com/react@18/umd/react.production.min.js
-// @require      https://unpkg.com/react-dom@18/umd/react-dom.production.min.js
-// @require      https://unpkg.com/react-hot-toast@2/dist/index.umd.js
-```
-
-**Option B: Inline Bundle**
-- Bundle React + ReactDOM + toast library inline
-- Larger file size but no external dependencies
-
-## Success Criteria
-- ✅ All 7 main features working (bypass, quiz, review, assignment, discussion, auto-join, link cleaner)
-- ✅ React UI panel functional with all buttons
-- ✅ Settings persist across sessions
-- ✅ CSRF tokens extracted and used correctly
-- ✅ Gemini AI integration working
-- ✅ Source database integration working
-- ✅ No console errors during normal operation
-- ✅ Works on all Coursera page types
-- ✅ Complete documentation provided

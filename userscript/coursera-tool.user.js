@@ -698,8 +698,7 @@ progress::-webkit-progress-value {
     const CONSTANTS = {
         METADATA_URL: "https://pear104.github.io/coursera-tool/gh-pages/metadata.json",
         COURSE_MAP_URL: "https://pear104.github.io/coursera-tool/gh-pages/courseMap.json",
-        GEMINI_API_URL: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-        FPT_SOURCE_URL: "https://coursera-tool-database.vercel.app/api/courses"
+        GEMINI_API_URL: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
     };
 
     // Dictionary for generating random text for assignments
@@ -1551,37 +1550,7 @@ progress::-webkit-progress-value {
         return `${dataToSign}.${encodedSignature}`;
     };
 
-    /**
-     * Decrypt source database data using AES-CBC
-     */
-    const decryptSourceData = async (encryptedBase64) => {
-        const keyString = "FLOTuH1EBXTWNFVtHni0pQ==";
-        const rawKey = Uint8Array.from(atob(keyString), c => c.charCodeAt(0));
-        const iv = rawKey; // Using key as IV (as in original)
 
-        try {
-            const key = await crypto.subtle.importKey(
-                "raw",
-                rawKey,
-                { name: "AES-CBC" },
-                false,
-                ["decrypt"]
-            );
-
-            const encryptedBytes = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
-            
-            const decryptedBuffer = await crypto.subtle.decrypt(
-                { name: "AES-CBC", iv: iv },
-                key,
-                encryptedBytes
-            );
-
-            return JSON.parse(new TextDecoder().decode(decryptedBuffer));
-        } catch (e) {
-            console.error("Decryption failed", e);
-            return [];
-        }
-    };
 
     // ==========================================
     // CORE AUTOMATION FEATURES
@@ -1600,43 +1569,25 @@ progress::-webkit-progress-value {
                 return;
             }
 
-            // Get CSRF token from cookies
-            const csrf3Token = getCookie('CSRF3-Token');
-            if (!csrf3Token) {
-                console.warn('Coursera Tool: CSRF3-Token not found in cookies');
-            } else {
-                console.log('Coursera Tool: ✓ CSRF3-Token found:', csrf3Token.substring(0, 20) + '...');
-            }
-
             const { materials, courseId, slug } = await getCourseMetadata();
             await getAuthDetails(); // Telemetry check
 
             setLoadingStatus(prev => ({...prev, isLoadingCompleteWeek: true}));
 
-        console.log(`Coursera Tool: Processing ${materials.length} course materials...`);
-        console.log(`Coursera Tool: User ID: ${userId}, Course ID: ${courseId}, Slug: ${slug}`);
-        console.log(`Coursera Tool: CSRF Token: ${csrf3Token ? csrf3Token.substring(0, 20) + '...' : 'NOT FOUND'}`);
-        console.log(`Coursera Tool: Cookies:`, document.cookie.substring(0, 200) + '...');
-        
-        const promises = materials.map(async (item) => {
-            // Skip items without contentSummary
-            if (!item || !item.contentSummary || !item.contentSummary.typeName) {
-                console.log('Coursera Tool: Skipping item without contentSummary:', item?.id);
-                return null;
-            }
+            console.log(`Coursera Tool: Processing ${materials.length} course materials...`);
             
-            const type = item.contentSummary.typeName;
-            const itemId = item.id;
-            
-            console.log(`Coursera Tool: Processing ${type}: ${itemId}`);
+            const promises = materials.map(async (item) => {
+                if (!item || !item.contentSummary || !item.contentSummary.typeName) {
+                    return null;
+                }
+                
+                const type = item.contentSummary.typeName;
+                const itemId = item.id;
 
-            try {
-                // Bypass Video (lecture) - using correct opencourse.v1 API
-                if (type === "lecture") {
-                    try {
-                        // Use the opencourse.v1 API endpoint (the one that actually works!)
-                        const videoUrl = `https://www.coursera.org/api/opencourse.v1/user/${userId}/course/${slug}/item/${itemId}/lecture/videoEvents/ended?autoEnroll=false`;
-                        console.log(`Coursera Tool: Sending video completion request to: ${videoUrl}`);
+                try {
+                    // Bypass Video (lecture) - using onDemandLectureVideoEvents API
+                    if (type === "lecture") {
+                        const videoUrl = `https://www.coursera.org/api/onDemandLectureVideoEvents.v1/${userId}~${courseId}~${itemId}/lecture/videoEvents/ended?autoEnroll=false`;
                         
                         const response = await fetch(videoUrl, {
                             method: "POST",
@@ -1644,70 +1595,39 @@ progress::-webkit-progress-value {
                             body: JSON.stringify({ contentRequestBody: {} })
                         });
                         
-                        console.log(`Coursera Tool: Video response status: ${response.status} ${response.statusText}`);
-                        
                         if (response.ok) {
                             console.log(`✓ Bypassed video: ${itemId}`);
                             return `video-${itemId}`;
-                        } else {
-                            const errorText = await response.text();
-                            console.error(`✗ Failed to bypass video ${itemId}: ${response.status} ${response.statusText}`, errorText.substring(0, 200));
-                            return null;
                         }
-                    } catch (error) {
-                        console.error(`✗ Error bypassing video ${itemId}:`, error);
-                        return null;
                     }
-                }
 
-                // Bypass Reading (supplement) - using onDemandSupplementCompletions.v1
-                if (type === "supplement") {
-                    try {
-                        const readingUrl = "https://www.coursera.org/api/onDemandSupplementCompletions.v1";
-                        console.log(`Coursera Tool: Marking reading complete: ${readingUrl}`);
-                        console.log(`Coursera Tool: Reading payload:`, { courseId, itemId, userId: Number(userId) });
+                    // Bypass Reading (supplement) - using onDemandLtiUngradedLaunches API
+                    else if (type === "supplement") {
+                        const readingUrl = "https://www.coursera.org/api/onDemandLtiUngradedLaunches.v1/?fields=endpointUrl%2CauthRequestUrl%2CsignedProperties";
                         
-                        // Use minimal headers like the extension
                         const response = await fetch(readingUrl, {
                             method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                                "Accept": "*/*"
-                            },
+                            headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
                                 courseId: courseId,
                                 itemId: itemId,
-                                userId: Number(userId)
+                                learnerId: Number(userId),
+                                markItemCompleted: true
                             })
                         });
                         
-                        console.log(`Coursera Tool: Reading response status: ${response.status} ${response.statusText}`);
-                        
-                        // Accept both 200 and 201 as success
                         if (response.ok) {
                             console.log(`✓ Bypassed reading: ${itemId}`);
                             return `reading-${itemId}`;
-                        } else {
-                            const errorText = await response.text();
-                            console.error(`✗ Failed to bypass reading ${itemId}: ${response.status} ${response.statusText}`, errorText.substring(0, 200));
-                            console.error(`Coursera Tool: Full error response:`, errorText);
-                            return null;
                         }
-                    } catch (error) {
-                        console.error(`✗ Error bypassing reading ${itemId}:`, error);
-                        return null;
                     }
+                    
+                    return null;
+                } catch (error) {
+                    console.error(`✗ Error bypassing ${type} ${itemId}:`, error);
+                    return null;
                 }
-                
-                // Log other types for debugging
-                console.log(`Coursera Tool: Unsupported content type: ${type} (${itemId})`);
-                return null;
-                
-            } catch (error) {
-                console.error(`Coursera Tool: Error bypassing ${type} ${itemId}:`, error);
-                return null;
-            }
-        });
+            });
 
             const results = await toast.promise(Promise.all(promises), {
                 loading: 'Skipping Videos & Readings...',
@@ -1715,29 +1635,25 @@ progress::-webkit-progress-value {
                 error: 'Some items failed.'
             });
             
-            // Filter out null results and count successes
             const successful = results.filter(result => result !== null);
             const videos = successful.filter(result => result && result.startsWith('video-')).length;
             const readings = successful.filter(result => result && result.startsWith('reading-')).length;
             
-            console.log(`Coursera Tool: Completion summary - Videos: ${videos}, Readings: ${readings}, Total: ${successful.length}`);
-            
             if (successful.length === 0) {
-                toast.warning('No videos or readings were found to complete. Check if you are on the correct course page.');
+                toast.warning('No videos or readings were found to complete.');
             } else {
                 toast.success(`Completed ${videos} videos and ${readings} readings!`);
             }
 
             setLoadingStatus(prev => ({...prev, isLoadingCompleteWeek: false}));
             
-            // Only reload if something was actually completed
             if (successful.length > 0) {
                 setTimeout(() => window.location.reload(), 2000);
             }
             
         } catch (error) {
             console.error('Coursera Tool: Bypass course content error:', error);
-            toast.error(error.message || 'Failed to complete week. Please try again.');
+            toast.error(error.message || 'Failed to complete week.');
             setLoadingStatus(prev => ({...prev, isLoadingCompleteWeek: false}));
         }
     };
@@ -1961,194 +1877,9 @@ progress::-webkit-progress-value {
     };
 
     // ==========================================
-    // QUIZ AUTOMATION - SOURCE DATABASE SOLVER
+    // QUIZ HELPER FUNCTIONS
     // ==========================================
     
-    /**
-     * Fetch answers from Source Database
-     * Retrieves encrypted answer data from the FPT database and decrypts it
-     * @param {string} courseId - The Coursera course ID
-     * @returns {Promise<Array>} Array of answer objects with term and definition
-     */
-    const fetchAnswersFromSource = async (courseId) => {
-        try {
-            // Fetch the database API URL from metadata
-            const metadata = await fetch(CONSTANTS.METADATA_URL).then(r => r.json());
-            const dbEndpoint = metadata.database + "/api/courses";
-
-            // Get Auth Headers
-            const storage = await chrome.storage.local.get(["CAUTH", "profileconsent", "email"]);
-            
-            // Send request with course ID and auth details
-            const response = await fetch(dbEndpoint, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    CAUTH: storage.CAUTH,
-                    profileconsent: storage.profileconsent,
-                    email: storage.email,
-                    code: courseId
-                })
-            });
-
-            const json = await response.json();
-            
-            // The response is encrypted - decrypt it
-            if (json.data) {
-                return await decryptSourceData(json.data);
-            }
-            return [];
-        } catch (e) {
-            console.error("Source Fetch Error", e);
-            return [];
-        }
-    };
-
-    /**
-     * Solve quiz using Source Database
-     * Matches questions with pre-existing answers from the database
-     * @param {Function} setLoadingStatus - React state setter for loading status
-     */
-    const handleAutoQuizSource = async (setLoadingStatus) => {
-        setLoadingStatus(prev => ({...prev, isLoadingQuizSource: true}));
-        
-        try {
-            // Check if we are on a quiz/exam/assignment page
-            const isQuizPage = location.pathname.includes("/exam") || 
-                              location.pathname.includes("/quiz") || 
-                              location.pathname.includes("/assignment-submission") ||
-                              location.pathname.includes("/attempt");
-            
-            if (!isQuizPage) {
-                toast.error("Please navigate to a Quiz, Exam, or Assignment page.");
-                setLoadingStatus(prev => ({...prev, isLoadingQuizSource: false}));
-                return;
-            }
-            
-            // Extend prototype for matching
-            extendStringPrototype();
-
-            // Wait for the form to load - try multiple selectors
-            let formParts = [];
-            try {
-                await waitForSelector(".rc-FormPart", 5000);
-                formParts = Array.from(document.querySelectorAll(".rc-FormPart"));
-            } catch (e) {
-                // Try alternative selectors for different page types
-                console.log("Trying alternative selectors...");
-                
-                const alternativeSelectors = [
-                    "div[data-test='question-container']",
-                    ".rc-FormPartsContainer .rc-CML", // More specific: CML inside form container
-                    "div[role='group']", // Questions often have role=group
-                    "form .question",
-                    "[data-test*='question']",
-                    ".rc-CML" // Fallback to broad selector
-                ];
-                
-                for (const selector of alternativeSelectors) {
-                    formParts = Array.from(document.querySelectorAll(selector));
-                    if (formParts.length > 0) {
-                        console.log(`Found ${formParts.length} questions using selector: ${selector}`);
-                        break;
-                    }
-                }
-                
-                if (formParts.length === 0) {
-                    toast.error("Could not find quiz questions on this page. The page structure may have changed.");
-                    setLoadingStatus(prev => ({...prev, isLoadingQuizSource: false}));
-                    return;
-                }
-            }
-
-            // Get course metadata to extract course ID
-            const { courseId } = await getCourseMetadata();
-            
-            // Fetch answers from source database
-            const answers = await fetchAnswersFromSource(courseId);
-
-            if (!answers || answers.length === 0) {
-                toast.error("No answers found in Source Database.");
-                setLoadingStatus(prev => ({...prev, isLoadingQuizSource: false}));
-                return;
-            }
-            
-            // Matching Logic
-            let matchedCount = 0;
-            
-            for (const part of formParts) {
-                // Get question text
-                const questionElement = part.querySelector(".css-1f9g19a") || part;
-                const questionText = questionElement.innerText.cleanup();
-
-                // Find answer in database
-                // The database returns { term: "Question", definition: "Answer" }
-                const match = answers.find(a => {
-                    const termClean = a.term.cleanup();
-                    return termClean.includes(questionText) || questionText.includes(termClean);
-                });
-
-                if (match) {
-                    const answerText = match.definition.cleanup();
-                    
-                    // Find options in the DOM
-                    const options = part.querySelectorAll(".rc-Option, label, input[type='radio'], input[type='checkbox']");
-                    
-                    for (const opt of options) {
-                        const optionLabel = opt.innerText || opt.value || "";
-                        const optionClean = optionLabel.cleanup();
-                        
-                        if (answerText.includes(optionClean) && optionClean.length > 0) {
-                            // Find the input element
-                            const input = opt.querySelector("input") || opt;
-                            
-                            if (input.type === 'radio' || input.type === 'checkbox') {
-                                if (!input.checked) {
-                                    input.click();
-                                    matchedCount++;
-                                    
-                                    // Visual Feedback (Badge)
-                                    addBadgeToLabel(opt, "FPT");
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Handle textarea inputs
-                    const textareas = part.querySelectorAll("textarea");
-                    if (textareas.length > 0) {
-                        textareas.forEach(textarea => {
-                            textarea.value = match.definition;
-                            textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                            matchedCount++;
-                        });
-                    }
-                } else {
-                    // Log unmatched questions for potential contribution
-                    console.log("Unmatched Question:", questionText);
-                }
-            }
-
-            if (matchedCount > 0) {
-                toast.success(`Applied ${matchedCount} answers from Source Database.`);
-            } else {
-                toast.warning("No matching answers found in database.");
-            }
-
-            // Auto Submit if configured
-            const { isAutoSubmitQuiz } = await chrome.storage.local.get("isAutoSubmitQuiz");
-            if (isAutoSubmitQuiz) {
-                await autoSubmitQuiz();
-            }
-
-        } catch (e) {
-            console.error("Source Quiz Solver Error:", e);
-            toast.error("Source Quiz Solver encountered an error.");
-        } finally {
-            setLoadingStatus(prev => ({...prev, isLoadingQuizSource: false}));
-        }
-    };
-
     /**
      * Add visual badge to options identified by the tool
      * Provides visual feedback showing which answers were auto-selected
@@ -2246,36 +1977,71 @@ progress::-webkit-progress-value {
         setLoadingStatus(prev => ({...prev, isLoadingSubmitPeerGrading: true}));
 
         try {
-            // Generate random content for assignment
-            const content = generateRandomString(200);
+            // Wait for form to load
+            await waitForSelector(".rc-FormPart", 5000).catch(() => {});
+
+            // Generate random content
+            const randomText = generateRandomString(10);
             
-            // Fill text areas
+            // Fill ContentEditable Divs (Rich Text Editors)
+            const editors = document.querySelectorAll("div[contenteditable='true']");
+            editors.forEach(editor => {
+                editor.focus();
+                editor.innerText = randomText;
+                editor.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+
+            // Fill Standard Textareas
             const textAreas = document.querySelectorAll("textarea");
             textAreas.forEach(ta => {
-                ta.value = content;
+                ta.value = randomText;
                 ta.dispatchEvent(new Event('input', { bubbles: true }));
             });
 
-            // Handle File Uploads (Create dummy file)
-            const fileInputs = document.querySelectorAll("input[type='file']");
+            // Handle File Uploads
+            const fileInputs = Array.from(document.querySelectorAll("input[type='file']"));
             for (const input of fileInputs) {
-                const file = new File([content], "assignment.txt", { type: "text/plain" });
-                const dt = new DataTransfer();
-                dt.items.add(file);
-                input.files = dt.files;
+                // Create dummy file
+                const fileContent = generateRandomString(100);
+                const fileName = generateRandomString(4, "-") + ".txt";
+                const file = new File([fileContent], fileName, { type: "text/plain" });
+
+                // Create DataTransfer
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                
+                // Handle React internal tracker
+                const reactTracker = input._valueTracker;
+                if (reactTracker) reactTracker.setValue(fileName);
+                
+                input.files = dataTransfer.files;
                 input.dispatchEvent(new Event('change', { bubbles: true }));
-                await wait(1000);
+                
+                // Wait for upload to process
+                await wait(3000);
             }
 
-            // Agree to Honor Code
-            const checkbox = document.querySelector("input[type='checkbox']");
-            if (checkbox && !checkbox.checked) checkbox.click();
+            // Wait before submit
+            await wait(4000);
+            
+            // Find and click submit button
+            const submitBtn = await waitForSelector("button[data-test='submit-button']", 10000).catch(() => null);
+            if (submitBtn) {
+                submitBtn.click();
+                
+                // Handle confirmation modal
+                await wait(1000);
+                const confirmBtn = await waitForSelector("button[data-test='confirm-submit-button']", 10000).catch(() => null);
+                if (confirmBtn) {
+                    confirmBtn.click();
+                }
+            }
 
-            toast.success("Assignment populated. Please submit manually.");
+            toast.success("Assignment submitted!");
 
         } catch (e) {
             console.error("Assignment Submission Error:", e);
-            toast.error("Assignment Prep Failed");
+            toast.error("Assignment submission failed");
         } finally {
             setLoadingStatus(prev => ({...prev, isLoadingSubmitPeerGrading: false}));
         }
@@ -2283,7 +2049,7 @@ progress::-webkit-progress-value {
 
     /**
      * Handle discussion prompt automation
-     * Uses Gemini AI to generate and post responses to discussion prompts
+     * Posts random text to discussion forums
      * @param {Function} setLoadingStatus - React state setter for loading status
      */
     const handleDiscussionPrompt = async (setLoadingStatus) => {
@@ -2292,79 +2058,87 @@ progress::-webkit-progress-value {
         try {
             const { materials, courseId } = await getCourseMetadata();
             const userId = getUserId();
-            const csrf3Token = GM_getValue('csrf3Token');
+            const csrf3Token = getCookie('CSRF3-Token');
+
+            if (!csrf3Token) {
+                toast.error("CSRF token not found. Please refresh the page.");
+                setLoadingStatus(prev => ({ ...prev, isLoadingDiscuss: false }));
+                return;
+            }
 
             // Filter for discussion prompts
-            const discussionItems = materials.filter(item => 
-                item.contentSummary?.typeName === "discussionPrompt"
+            const prompts = materials.filter(item => 
+                item.contentSummary?.typeName?.includes("discussionPrompt")
             );
 
-            if (discussionItems.length === 0) {
-                toast("No discussion prompts found for this week.");
+            if (prompts.length === 0) {
+                toast.warning("No discussion prompts found.");
                 setLoadingStatus(prev => ({ ...prev, isLoadingDiscuss: false }));
                 return;
             }
 
-            const geminiAPI = GM_getValue('geminiAPI');
-            if (!geminiAPI) {
-                alert("Gemini API key required for discussions.");
-                setLoadingStatus(prev => ({ ...prev, isLoadingDiscuss: false }));
-                return;
-            }
+            // Get discussion waiting time from settings (default 12 seconds)
+            const discussionWaitingTime = isolatedStorage.get('discussionWaitingTime', 12);
 
             let count = 0;
-            for (const item of discussionItems) {
-                // Get the specific question ID for the forum
-                const launchUrl = `https://www.coursera.org/api/onDemandDiscussionPromptLaunches.v1/${courseId}~${item.id}?includes=prompt&fields=onDemandDiscussionPrompts.v1(forumQuestionId,prompt)`;
-                const launchData = await fetch(launchUrl).then(r => r.json());
-                
-                // Navigate the response structure to find the question ID
-                const promptData = launchData.linked?.["onDemandDiscussionPrompts.v1"]?.[0];
-                const forumQuestionId = promptData?.forumQuestionId;
-                const promptText = promptData?.prompt?.definition?.value || "Write a thoughtful response regarding this course topic.";
+            for (const prompt of prompts) {
+                try {
+                    // Fetch forum question details
+                    const forumUrl = `https://www.coursera.org/api/onDemandCourseItemForumQuestions.v1?q=courseItem&courseId=${courseId}&itemId=${prompt.id}&limit=1`;
+                    const forumData = await fetch(forumUrl).then(r => r.json());
+                    
+                    // Extract forum question ID
+                    const forumQuestionIdRaw = forumData?.linked?.['onDemandCourseItemForumQuestions.v1']?.[0]?.definition?.courseItemForumQuestionId;
+                    const actualForumId = forumQuestionIdRaw?.split("~")[2];
+                    
+                    if (!actualForumId) {
+                        console.error(`Could not extract forum ID for ${prompt.id}`);
+                        continue;
+                    }
 
-                if (!forumQuestionId) continue;
+                    // Generate random text (10 words)
+                    const randomText = generateRandomString(10);
+                    
+                    // Post to forum
+                    const postUrl = "https://www.coursera.org/api/onDemandCourseForumAnswers.v1";
+                    const response = await fetch(postUrl, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "x-csrf3-token": csrf3Token
+                        },
+                        body: JSON.stringify({
+                            content: {
+                                typeName: "cml",
+                                definition: {
+                                    dtdId: "discussion/1",
+                                    value: `<co-content><text>${randomText}</text></co-content>`
+                                }
+                            },
+                            courseForumQuestionId: `${courseId}~${actualForumId}`
+                        })
+                    });
 
-                // Generate content with Gemini
-                const payload = {
-                    system_instruction: { 
-                        parts: { text: "You are a student. Write a short, constructive, and positive 50-word response to the following discussion prompt." } 
-                    },
-                    contents: [{ parts: [{ text: promptText }] }]
-                };
+                    if (response.ok) {
+                        count++;
+                        toast.success(`Done ${prompt.name}! (${count}/${prompts.length})`);
+                    }
 
-                const aiRes = await fetch(`${CONSTANTS.GEMINI_API_URL}?key=${geminiAPI}`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload)
-                });
-                const aiJson = await aiRes.json();
-                const aiText = aiJson.candidates?.[0]?.content?.parts?.[0]?.text || "Great topic! I learned a lot from this module.";
+                    // Wait between submissions if more than 3 prompts
+                    if (count < 3 && count < prompts.length) {
+                        await wait(discussionWaitingTime * 1000);
+                    }
 
-                // Post the answer to the forum
-                await fetch(`https://www.coursera.org/api/opencourse.v1/forumAnswers`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "x-csrf3-token": csrf3Token
-                    },
-                    body: JSON.stringify({
-                        courseId: courseId,
-                        itemId: item.id,
-                        forumQuestionId: forumQuestionId,
-                        text: aiText
-                    })
-                });
-
-                count++;
-                toast.success(`Posted discussion for: ${item.name}`);
-                
-                // Wait to avoid rate limits
-                await wait(2000);
+                } catch (error) {
+                    console.error(`Error processing prompt ${prompt.id}:`, error);
+                }
             }
 
             if (count > 0) {
-                toast.success(`Completed ${count} discussion prompts.`);
+                toast.success(`Completed ${count}/${prompts.length} discussion prompts!`);
+                setTimeout(() => window.location.reload(), 2000);
+            } else {
+                toast.error("No discussions were posted successfully.");
             }
 
         } catch (e) {
@@ -2376,60 +2150,87 @@ progress::-webkit-progress-value {
     };
 
     /**
-     * Request grading by peer for submitted assignments
+     * Request grading by peer for submitted assignments (Disable AI Grading)
      * Triggers the peer grading request via GraphQL API
-     * @param {string} submissionId - The assignment submission ID
      */
-    const requestGradingByPeer = async (submissionId) => {
-        if (!submissionId) {
-            console.error("No submission ID provided");
-            return;
-        }
-
+    const requestGradingByPeer = async () => {
         try {
-            const csrf3Token = GM_getValue('csrf3Token');
+            // Check if on assignment submission page
+            if (!location.href.includes("assignment-submission")) {
+                toast.error("Please go to the assignment submission page.");
+                return;
+            }
+
+            // Extract user ID
+            const userId = getUserId();
+            if (!userId) {
+                toast.error("Could not find User ID.");
+                return;
+            }
+
+            // Get course and item metadata from URL
+            const pathParts = window.location.pathname.split("/");
+            const courseIndex = pathParts.indexOf("learn");
+            const courseId = courseIndex !== -1 ? pathParts[courseIndex + 1] : null;
+            const itemId = pathParts[pathParts.length - 1];
+
+            if (!courseId || !itemId) {
+                toast.error("Could not extract course/item ID from URL.");
+                return;
+            }
+
+            // Fetch submission ID
+            const permissionUrl = `https://www.coursera.org/api/onDemandPeerAssignmentPermissions.v1/${userId}~${courseId}~${itemId}`;
+            const permissionData = await fetch(permissionUrl).then(r => r.json());
             
-            // GraphQL mutation to request peer grading
-            const query = `
-                mutation RequestGradingByPeer($input: PeerReviewAi_RequestGradingByPeerInput!) {
-                    PeerReviewAi_RequestGradingByPeer(input: $input) {
-                        submissionId
-                        __typename
-                    }
-                }
-            `;
+            const submissionId = permissionData
+                ?.linked?.['onDemandPeerSubmissionProgresses.v1']?.[0]
+                ?.latestSubmissionSummary?.computed?.id;
 
-            const variables = {
-                input: {
-                    submissionId: submissionId
-                }
-            };
+            if (!submissionId) {
+                toast.error("Could not find submission ID.");
+                return;
+            }
 
-            const response = await fetch('https://www.coursera.org/graphql-gateway?opname=RequestGradingByPeer', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-csrf3-token': csrf3Token
+            // Get CSRF token
+            const csrf3Token = getCookie('CSRF3-Token');
+            
+            // Send GraphQL mutation
+            const response = await fetch("https://www.coursera.org/graphql-gateway?opname=RequestGradingByPeer", {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "x-csrf3-token": csrf3Token
                 },
-                body: JSON.stringify({
-                    query: query,
-                    variables: variables
-                })
+                body: JSON.stringify([{
+                    operationName: "RequestGradingByPeer",
+                    variables: {
+                        input: {
+                            courseId: courseId,
+                            itemId: itemId,
+                            submissionId: submissionId,
+                            reason: "EXPECTED_HIGHER_SCORE"
+                        }
+                    },
+                    query: `mutation RequestGradingByPeer($input: PeerReviewAi_RequestGradingByPeerInput!) {
+                        PeerReviewAi_RequestGradingByPeer(input: $input) {
+                            submissionId
+                            __typename
+                        }
+                    }`
+                }])
             });
 
-            const result = await response.json();
-            
-            if (result.data?.PeerReviewAi_RequestGradingByPeer) {
-                toast.success("Peer grading requested successfully");
-                return result.data.PeerReviewAi_RequestGradingByPeer;
+            if (response.ok) {
+                toast.success("AI grading disabled! Peer grading requested.");
+                setTimeout(() => window.location.reload(), 2000);
             } else {
-                throw new Error("Failed to request peer grading");
+                toast.error("Failed to disable AI grading.");
             }
 
         } catch (e) {
             console.error("Request Grading Error:", e);
             toast.error("Failed to request peer grading");
-            return null;
         }
     };
 
@@ -2446,22 +2247,14 @@ progress::-webkit-progress-value {
         // State for configuration settings
         const [config, setConfig] = React.useState({
             isAutoSubmitQuiz: false,
-            method: "gemini",
             geminiAPI: "",
-            isShowControlPanel: true,
-            // Feature toggles
-            enableCompleteWeek: true,
-            enableQuizSolver: true,
-            enablePeerReview: true,
-            enableAssignmentSubmit: true,
-            enableDiscussionPrompts: true
+            isShowControlPanel: true
         });
         
         // State for loading indicators
         const [loadingStatus, setLoadingStatus] = React.useState({
             isLoadingCompleteWeek: false,
             isLoadingQuiz: false,
-            isLoadingQuizSource: false,
             isLoadingReview: false,
             isLoadingSubmitPeerGrading: false,
             isLoadingDiscuss: false
@@ -2481,14 +2274,8 @@ progress::-webkit-progress-value {
             // Load from Tampermonkey's isolated storage
             const loadedConfig = {
                 isAutoSubmitQuiz: isolatedStorage.get('isAutoSubmitQuiz', false),
-                method: isolatedStorage.get('method', 'gemini'),
                 geminiAPI: isolatedStorage.get('geminiAPI', ''),
-                isShowControlPanel: isolatedStorage.get('isShowControlPanel', true),
-                enableCompleteWeek: isolatedStorage.get('enableCompleteWeek', true),
-                enableQuizSolver: isolatedStorage.get('enableQuizSolver', true),
-                enablePeerReview: isolatedStorage.get('enablePeerReview', true),
-                enableAssignmentSubmit: isolatedStorage.get('enableAssignmentSubmit', true),
-                enableDiscussionPrompts: isolatedStorage.get('enableDiscussionPrompts', true)
+                isShowControlPanel: isolatedStorage.get('isShowControlPanel', true)
             };
             
             console.log('Coursera Tool: Loaded config:', loadedConfig);
@@ -2549,8 +2336,10 @@ progress::-webkit-progress-value {
             }
             
             setIsDragging(true);
+            // Since panel is positioned from the right, calculate offset accordingly
+            const panelWidth = panelRef.current?.offsetWidth || 320;
             setDragOffset({
-                x: e.clientX - position.x,
+                x: panelWidth - (window.innerWidth - e.clientX - position.x),
                 y: e.clientY - position.y
             });
         };
@@ -2559,12 +2348,15 @@ progress::-webkit-progress-value {
         React.useEffect(() => {
             const handleMouseMove = (e) => {
                 if (isDragging) {
-                    const newX = e.clientX - dragOffset.x;
+                    // Since panel is positioned from the right, invert X calculation
+                    const newX = window.innerWidth - e.clientX - dragOffset.x;
                     const newY = e.clientY - dragOffset.y;
                     
                     // Keep panel within viewport
-                    const maxX = window.innerWidth - (panelRef.current?.offsetWidth || 300);
-                    const maxY = window.innerHeight - (panelRef.current?.offsetHeight || 400);
+                    const panelWidth = panelRef.current?.offsetWidth || 320;
+                    const panelHeight = panelRef.current?.offsetHeight || 400;
+                    const maxX = window.innerWidth - panelWidth;
+                    const maxY = window.innerHeight - panelHeight;
                     
                     const boundedX = Math.max(0, Math.min(newX, maxX));
                     const boundedY = Math.max(0, Math.min(newY, maxY));
@@ -2688,7 +2480,7 @@ progress::-webkit-progress-value {
                 } 
             },
                 // Complete Week Button
-                config.enableCompleteWeek && React.createElement("button", {
+                React.createElement("button", {
                     onClick: () => bypassCourseContent(setLoadingStatus),
                     disabled: loadingStatus.isLoadingCompleteWeek,
                     style: {
@@ -2710,47 +2502,25 @@ progress::-webkit-progress-value {
                     loadingStatus.isLoadingCompleteWeek ? "⏳ Processing..." : "✓ Complete Week"
                 ),
 
-                // Quiz Solver Buttons Row
-                config.enableQuizSolver && React.createElement("div", { 
-                    style: { 
-                        display: 'grid', 
-                        gridTemplateColumns: '1fr 1fr',
-                        gap: '8px'
-                    } 
-                },
-                    React.createElement("button", {
-                        onClick: () => handleAutoQuiz(setLoadingStatus),
-                        disabled: loadingStatus.isLoadingQuiz,
-                        style: {
-                            backgroundColor: loadingStatus.isLoadingQuiz ? '#9ca3af' : '#2563eb',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            padding: '10px 12px',
-                            cursor: loadingStatus.isLoadingQuiz ? 'not-allowed' : 'pointer',
-                            fontWeight: '500',
-                            fontSize: '13px'
-                        }
-                    }, loadingStatus.isLoadingQuiz ? "⏳" : "🧠 Gemini"),
-                    
-                    React.createElement("button", {
-                        onClick: () => handleAutoQuizSource(setLoadingStatus),
-                        disabled: loadingStatus.isLoadingQuizSource,
-                        style: {
-                            backgroundColor: loadingStatus.isLoadingQuizSource ? '#9ca3af' : '#10b981',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            padding: '10px 12px',
-                            cursor: loadingStatus.isLoadingQuizSource ? 'not-allowed' : 'pointer',
-                            fontWeight: '500',
-                            fontSize: '13px'
-                        }
-                    }, loadingStatus.isLoadingQuizSource ? "⏳" : "📚 Source")
-                ),
+                // Quiz Solver Button
+                React.createElement("button", {
+                    onClick: () => handleAutoQuiz(setLoadingStatus),
+                    disabled: loadingStatus.isLoadingQuiz,
+                    style: {
+                        width: '100%',
+                        backgroundColor: loadingStatus.isLoadingQuiz ? '#9ca3af' : '#2563eb',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '10px 16px',
+                        cursor: loadingStatus.isLoadingQuiz ? 'not-allowed' : 'pointer',
+                        fontWeight: '500',
+                        fontSize: '14px'
+                    }
+                }, loadingStatus.isLoadingQuiz ? "⏳ Solving..." : "🧠 Solve Quiz (Gemini)"),
 
                 // Auto Submit Toggle
-                config.enableQuizSolver && React.createElement("label", { 
+                React.createElement("label", { 
                     style: { 
                         display: 'flex', 
                         alignItems: 'center', 
@@ -2773,14 +2543,14 @@ progress::-webkit-progress-value {
                 ),
 
                 // Peer Review & Assignment Row
-                (config.enableAssignmentSubmit || config.enablePeerReview) && React.createElement("div", { 
+                React.createElement("div", { 
                     style: { 
                         display: 'grid', 
                         gridTemplateColumns: '1fr 1fr',
                         gap: '8px'
                     } 
                 },
-                    config.enableAssignmentSubmit && React.createElement("button", {
+                    React.createElement("button", {
                         onClick: () => handlePeerAssignmentSubmission(setLoadingStatus),
                         disabled: loadingStatus.isLoadingSubmitPeerGrading,
                         style: {
@@ -2791,12 +2561,11 @@ progress::-webkit-progress-value {
                             padding: '10px 12px',
                             cursor: loadingStatus.isLoadingSubmitPeerGrading ? 'not-allowed' : 'pointer',
                             fontWeight: '500',
-                            fontSize: '13px',
-                            gridColumn: !config.enablePeerReview ? '1 / -1' : 'auto'
+                            fontSize: '13px'
                         }
                     }, loadingStatus.isLoadingSubmitPeerGrading ? "⏳" : "📝 Assignment"),
                     
-                    config.enablePeerReview && React.createElement("button", {
+                    React.createElement("button", {
                         onClick: () => handlePeerReview(setLoadingStatus),
                         disabled: loadingStatus.isLoadingReview,
                         style: {
@@ -2807,14 +2576,13 @@ progress::-webkit-progress-value {
                             padding: '10px 12px',
                             cursor: loadingStatus.isLoadingReview ? 'not-allowed' : 'pointer',
                             fontWeight: '500',
-                            fontSize: '13px',
-                            gridColumn: !config.enableAssignmentSubmit ? '1 / -1' : 'auto'
+                            fontSize: '13px'
                         }
                     }, loadingStatus.isLoadingReview ? "⏳" : "✓ Review Peer")
                 ),
 
                 // Discussion Prompts Button
-                config.enableDiscussionPrompts && React.createElement("button", {
+                React.createElement("button", {
                     onClick: () => handleDiscussionPrompt(setLoadingStatus),
                     disabled: loadingStatus.isLoadingDiscuss,
                     style: {
@@ -2847,27 +2615,9 @@ progress::-webkit-progress-value {
                         } 
                     }, "SETTINGS"),
                     
-                    React.createElement("select", {
-                        style: {
-                            width: '100%',
-                            padding: '8px 12px',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '8px',
-                            marginBottom: '8px',
-                            backgroundColor: '#f9fafb',
-                            fontSize: '14px',
-                            cursor: 'pointer'
-                        },
-                        value: config.method,
-                        onChange: (e) => updateConfig("method", e.target.value)
-                    },
-                        React.createElement("option", { value: "gemini" }, "Gemini AI"),
-                        React.createElement("option", { value: "source" }, "Source Database")
-                    ),
-
-                    config.method === "gemini" && React.createElement("input", {
+                    React.createElement("input", {
                         type: "password",
-                        key: "gemini-api-input", // Force re-render
+                        key: "gemini-api-input",
                         style: {
                             width: '100%',
                             padding: '8px 12px',
@@ -2878,142 +2628,17 @@ progress::-webkit-progress-value {
                             marginBottom: '12px'
                         },
                         placeholder: "Gemini API Key",
-                        value: config.geminiAPI || "", // Ensure it's never undefined
+                        value: config.geminiAPI || "",
                         onChange: (e) => {
                             const value = e.target.value;
                             console.log(`Coursera Tool: API key input changed: ${value.substring(0, 15)}...`);
                             updateConfig("geminiAPI", value);
                         },
                         onInput: (e) => {
-                            // Backup handler for immediate save
                             const value = e.target.value;
                             updateConfig("geminiAPI", value);
                         }
-                    }),
-
-                    // Feature Toggles Section
-                    React.createElement("div", { 
-                        style: { 
-                            marginTop: '12px',
-                            paddingTop: '12px',
-                            borderTop: '1px solid #e5e7eb'
-                        } 
-                    },
-                        React.createElement("div", { 
-                            style: { 
-                                marginBottom: '8px',
-                                fontSize: '12px',
-                                fontWeight: '600',
-                                color: '#6b7280',
-                                letterSpacing: '0.05em'
-                            } 
-                        }, "FEATURES"),
-
-                        // Complete Week Toggle
-                        React.createElement("label", { 
-                            style: { 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '8px',
-                                cursor: 'pointer',
-                                padding: '8px 0',
-                                fontSize: '13px',
-                                color: '#374151'
-                            } 
-                        },
-                            React.createElement("input", {
-                                type: "checkbox",
-                                checked: config.enableCompleteWeek,
-                                onChange: () => toggleConfig("enableCompleteWeek"),
-                                style: { cursor: 'pointer' }
-                            }),
-                            React.createElement("span", null, "Complete Week")
-                        ),
-
-                        // Quiz Solver Toggle
-                        React.createElement("label", { 
-                            style: { 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '8px',
-                                cursor: 'pointer',
-                                padding: '8px 0',
-                                fontSize: '13px',
-                                color: '#374151'
-                            } 
-                        },
-                            React.createElement("input", {
-                                type: "checkbox",
-                                checked: config.enableQuizSolver,
-                                onChange: () => toggleConfig("enableQuizSolver"),
-                                style: { cursor: 'pointer' }
-                            }),
-                            React.createElement("span", null, "Quiz Solver")
-                        ),
-
-                        // Peer Review Toggle
-                        React.createElement("label", { 
-                            style: { 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '8px',
-                                cursor: 'pointer',
-                                padding: '8px 0',
-                                fontSize: '13px',
-                                color: '#374151'
-                            } 
-                        },
-                            React.createElement("input", {
-                                type: "checkbox",
-                                checked: config.enablePeerReview,
-                                onChange: () => toggleConfig("enablePeerReview"),
-                                style: { cursor: 'pointer' }
-                            }),
-                            React.createElement("span", null, "Peer Review")
-                        ),
-
-                        // Assignment Submit Toggle
-                        React.createElement("label", { 
-                            style: { 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '8px',
-                                cursor: 'pointer',
-                                padding: '8px 0',
-                                fontSize: '13px',
-                                color: '#374151'
-                            } 
-                        },
-                            React.createElement("input", {
-                                type: "checkbox",
-                                checked: config.enableAssignmentSubmit,
-                                onChange: () => toggleConfig("enableAssignmentSubmit"),
-                                style: { cursor: 'pointer' }
-                            }),
-                            React.createElement("span", null, "Assignment Submit")
-                        ),
-
-                        // Discussion Prompts Toggle
-                        React.createElement("label", { 
-                            style: { 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '8px',
-                                cursor: 'pointer',
-                                padding: '8px 0',
-                                fontSize: '13px',
-                                color: '#374151'
-                            } 
-                        },
-                            React.createElement("input", {
-                                type: "checkbox",
-                                checked: config.enableDiscussionPrompts,
-                                onChange: () => toggleConfig("enableDiscussionPrompts"),
-                                style: { cursor: 'pointer' }
-                            }),
-                            React.createElement("span", null, "Discussion Prompts")
-                        )
-                    )
+                    })
                 )
             ),
             
@@ -3116,16 +2741,10 @@ progress::-webkit-progress-value {
         try {
             console.log('Coursera Tool: Testing settings persistence (Task 3.3)...');
             
-            // Test feature toggles
+            // Test settings
             const testSettings = {
-                enableCompleteWeek: false,
-                enableQuizSolver: true,
-                enablePeerReview: false,
-                enableAssignmentSubmit: true,
-                enableDiscussionPrompts: false,
                 geminiAPI: 'test-api-key-12345',
-                isAutoSubmitQuiz: true,
-                method: 'source'
+                isAutoSubmitQuiz: true
             };
             
             // Save test settings
@@ -3338,7 +2957,7 @@ progress::-webkit-progress-value {
      * Main initialization
      */
     const initialize = async () => {
-        console.log('Coursera Tool: Running Phase 1.3 initialization tests...');
+        console.log('Coursera Tool: Initializing...');
         
         // Test storage (Phase 1.2)
         await testStoragePersistence();

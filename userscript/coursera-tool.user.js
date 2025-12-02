@@ -452,9 +452,15 @@
         const urlObj = new URL(url, window.location.href);
         const isCrossOrigin = urlObj.origin !== window.location.origin;
         
-        // For same-origin requests, use ORIGINAL native fetch
+        // For same-origin requests, use ORIGINAL native fetch with credentials
         if (!isCrossOrigin) {
-            return originalFetch(url, options);  // Use originalFetch, not fetch!
+            // Ensure credentials are included for same-origin requests
+            const optionsWithCredentials = {
+                ...options,
+                credentials: options.credentials || 'include'
+            };
+            console.log(`Coursera Tool: Using native fetch for same-origin: ${url}`);
+            return originalFetch(url, optionsWithCredentials);
         }
         
         // For cross-origin requests, use GM_xmlhttpRequest
@@ -1464,13 +1470,19 @@ progress::-webkit-progress-value {
             throw new Error('Failed to fetch course materials. The API response was invalid.');
         }
         
-        // The Course ID is usually linked in the modules
-        const courseId = response.linked["onDemandCourseMaterialModules.v1"][0].id;
+        // The Course ID is in the module ID (format: courseId~moduleId)
+        const moduleId = response.linked["onDemandCourseMaterialModules.v1"][0].id;
+        const courseId = moduleId.split('~')[0]; // Extract just the course ID part
         
-        console.log(`Coursera Tool: Course ID: ${courseId}`);
+        console.log(`Coursera Tool: Module ID: ${moduleId}, Course ID: ${courseId}`);
+        
+        // Extract items from the linked section - this contains the actual content with contentSummary
+        const items = response.linked["onDemandCourseMaterialItems.v2"] || [];
+        
+        console.log(`Coursera Tool: Found ${items.length} items in course materials`);
         
         return {
-            materials: response.elements || [],
+            materials: items,
             courseId: courseId,
             slug: slug
         };
@@ -1588,64 +1600,140 @@ progress::-webkit-progress-value {
                 return;
             }
 
-            const { materials, courseId } = await getCourseMetadata();
+            // Get CSRF token from cookies
+            const csrf3Token = getCookie('CSRF3-Token');
+            if (!csrf3Token) {
+                console.warn('Coursera Tool: CSRF3-Token not found in cookies');
+            } else {
+                console.log('Coursera Tool: ✓ CSRF3-Token found:', csrf3Token.substring(0, 20) + '...');
+            }
+
+            const { materials, courseId, slug } = await getCourseMetadata();
             await getAuthDetails(); // Telemetry check
 
             setLoadingStatus(prev => ({...prev, isLoadingCompleteWeek: true}));
 
+        console.log(`Coursera Tool: Processing ${materials.length} course materials...`);
+        console.log(`Coursera Tool: User ID: ${userId}, Course ID: ${courseId}, Slug: ${slug}`);
+        console.log(`Coursera Tool: CSRF Token: ${csrf3Token ? csrf3Token.substring(0, 20) + '...' : 'NOT FOUND'}`);
+        console.log(`Coursera Tool: Cookies:`, document.cookie.substring(0, 200) + '...');
+        
         const promises = materials.map(async (item) => {
             // Skip items without contentSummary
             if (!item || !item.contentSummary || !item.contentSummary.typeName) {
                 console.log('Coursera Tool: Skipping item without contentSummary:', item?.id);
-                return;
+                return null;
             }
             
             const type = item.contentSummary.typeName;
             const itemId = item.id;
+            
+            console.log(`Coursera Tool: Processing ${type}: ${itemId}`);
 
             try {
-                // Bypass Video
+                // Bypass Video (lecture) - using correct opencourse.v1 API
                 if (type === "lecture") {
-                    const moduleId = item.moduleIds[0];
-                    await fetch(`https://www.coursera.org/api/onDemandLectureVideos.v1/${courseId}~${moduleId}~${itemId}/lecture/videoEvents/ended?autoEnroll=false`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ contentRequestBody: {} })
-                    });
-                } 
-                // Bypass Supplement (Reading)
-                else if (type === "supplement") {
-                    // Accessing the supplement endpoint usually triggers "view"
-                    await fetch(`https://www.coursera.org/api/onDemandSupplements.v1/${courseId}~${itemId}?includes=asset&fields=openCourseAssets.v1(typeName),openCourseAssets.v1(definition)`, {
-                        method: "GET",
-                        headers: { "Content-Type": "application/json" }
-                    });
-                    // Explicitly mark as completed
-                    await fetch(`https://www.coursera.org/api/onDemandLtiUngradedLaunches.v1/?fields=endpointUrl,authRequestUrl,signedProperties`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            courseId: courseId,
-                            itemId: itemId,
-                            learnerId: Number(userId),
-                            markItemCompleted: true
-                        })
-                    });
+                    try {
+                        // Use the opencourse.v1 API endpoint (the one that actually works!)
+                        const videoUrl = `https://www.coursera.org/api/opencourse.v1/user/${userId}/course/${slug}/item/${itemId}/lecture/videoEvents/ended?autoEnroll=false`;
+                        console.log(`Coursera Tool: Sending video completion request to: ${videoUrl}`);
+                        
+                        const response = await fetch(videoUrl, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ contentRequestBody: {} })
+                        });
+                        
+                        console.log(`Coursera Tool: Video response status: ${response.status} ${response.statusText}`);
+                        
+                        if (response.ok) {
+                            console.log(`✓ Bypassed video: ${itemId}`);
+                            return `video-${itemId}`;
+                        } else {
+                            const errorText = await response.text();
+                            console.error(`✗ Failed to bypass video ${itemId}: ${response.status} ${response.statusText}`, errorText.substring(0, 200));
+                            return null;
+                        }
+                    } catch (error) {
+                        console.error(`✗ Error bypassing video ${itemId}:`, error);
+                        return null;
+                    }
                 }
-            } catch (e) {
-                console.error(`Failed to bypass item ${itemId}`, e);
+
+                // Bypass Reading (supplement) - using onDemandSupplementCompletions.v1
+                if (type === "supplement") {
+                    try {
+                        const readingUrl = "https://www.coursera.org/api/onDemandSupplementCompletions.v1";
+                        console.log(`Coursera Tool: Marking reading complete: ${readingUrl}`);
+                        console.log(`Coursera Tool: Reading payload:`, { courseId, itemId, userId: Number(userId) });
+                        
+                        // Use minimal headers like the extension
+                        const response = await fetch(readingUrl, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Accept": "*/*"
+                            },
+                            body: JSON.stringify({
+                                courseId: courseId,
+                                itemId: itemId,
+                                userId: Number(userId)
+                            })
+                        });
+                        
+                        console.log(`Coursera Tool: Reading response status: ${response.status} ${response.statusText}`);
+                        
+                        // Accept both 200 and 201 as success
+                        if (response.ok) {
+                            console.log(`✓ Bypassed reading: ${itemId}`);
+                            return `reading-${itemId}`;
+                        } else {
+                            const errorText = await response.text();
+                            console.error(`✗ Failed to bypass reading ${itemId}: ${response.status} ${response.statusText}`, errorText.substring(0, 200));
+                            console.error(`Coursera Tool: Full error response:`, errorText);
+                            return null;
+                        }
+                    } catch (error) {
+                        console.error(`✗ Error bypassing reading ${itemId}:`, error);
+                        return null;
+                    }
+                }
+                
+                // Log other types for debugging
+                console.log(`Coursera Tool: Unsupported content type: ${type} (${itemId})`);
+                return null;
+                
+            } catch (error) {
+                console.error(`Coursera Tool: Error bypassing ${type} ${itemId}:`, error);
+                return null;
             }
         });
 
-            await toast.promise(Promise.all(promises), {
+            const results = await toast.promise(Promise.all(promises), {
                 loading: 'Skipping Videos & Readings...',
-                success: 'Completed!',
+                success: 'Processing complete!',
                 error: 'Some items failed.'
             });
+            
+            // Filter out null results and count successes
+            const successful = results.filter(result => result !== null);
+            const videos = successful.filter(result => result && result.startsWith('video-')).length;
+            const readings = successful.filter(result => result && result.startsWith('reading-')).length;
+            
+            console.log(`Coursera Tool: Completion summary - Videos: ${videos}, Readings: ${readings}, Total: ${successful.length}`);
+            
+            if (successful.length === 0) {
+                toast.warning('No videos or readings were found to complete. Check if you are on the correct course page.');
+            } else {
+                toast.success(`Completed ${videos} videos and ${readings} readings!`);
+            }
 
             setLoadingStatus(prev => ({...prev, isLoadingCompleteWeek: false}));
-            // Reload to reflect changes
-            setTimeout(() => window.location.reload(), 1000);
+            
+            // Only reload if something was actually completed
+            if (successful.length > 0) {
+                setTimeout(() => window.location.reload(), 2000);
+            }
             
         } catch (error) {
             console.error('Coursera Tool: Bypass course content error:', error);

@@ -3375,26 +3375,7 @@ progress::-webkit-progress-value {
             testToastNotifications();
         }, 500);
         
-        console.log('Coursera Tool: ========================================');
-        console.log('Coursera Tool: ✓ Phase 1.1 Complete - Metadata & Dependencies');
-        console.log('Coursera Tool: ✓ Phase 1.2 Complete - Chrome API Replacements');
-        console.log('Coursera Tool: ✓ Phase 1.3 Complete - Utility & API Functions');
-        console.log('Coursera Tool: ✓ Phase 2.1 Complete - Content Bypass & Auto-Join');
-        console.log('Coursera Tool: ✓ Phase 2.2 Complete - Quiz Automation (Gemini AI)');
-        console.log('Coursera Tool: ✓ Phase 3.1 Complete - React App Component & State Management');
-        console.log('Coursera Tool: ✓ Phase 3.2 Complete - Control Panel UI with Feature Buttons');
-        console.log('Coursera Tool: ✓ Phase 3.3 Complete - Settings Panel with Persistence');
-        console.log('Coursera Tool: ✓ Phase 3.4 Complete - Toast Notifications & Styling');
-        console.log('Coursera Tool: ========================================');
-        console.log('Coursera Tool: All helpers operational');
-        console.log('Coursera Tool: API calls work with CORS bypass');
-        console.log('Coursera Tool: Crypto functions (JWT/AES) working');
-        console.log('Coursera Tool: Videos/readings bypass available');
-        console.log('Coursera Tool: Auto-join functionality active');
-        console.log('Coursera Tool: Gemini AI quiz solver ready');
-        console.log('Coursera Tool: React UI panel mounted');
-        console.log('Coursera Tool: Settings panel with feature toggles ready');
-        console.log('Coursera Tool: Toast notifications and styling injected');
+        console.log('Coursera Tool: initiated');
     };
 
     /**

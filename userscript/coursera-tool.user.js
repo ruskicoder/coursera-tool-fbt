@@ -2292,9 +2292,9 @@ progress::-webkit-progress-value {
      * Simulate typing character by character with delay for React inputs
      * @param {HTMLElement} element - The input element to type into
      * @param {string} text - The text to type
-     * @param {number} delay - Delay between characters in milliseconds (default 1ms - fastest)
+     * @param {number} delay - Delay between characters in milliseconds (default 10ms)
      */
-    const simulateTyping = async (element, text, delay = 1) => {
+    const simulateTyping = async (element, text, delay = 10) => {
         element.focus();
 
         // For contenteditable divs (rich text editors)
@@ -2302,7 +2302,7 @@ progress::-webkit-progress-value {
             // Clear first
             element.innerText = '';
 
-            // Type character by character at fastest speed
+            // Type character by character with 10ms delay
             for (let i = 0; i < text.length; i++) {
                 const char = text[i];
                 element.innerText += char;
@@ -2315,7 +2315,7 @@ progress::-webkit-progress-value {
             element.blur();
         } else {
             // For input/textarea - use React-compatible method
-            // Type character by character at fastest speed
+            // Type character by character with 10ms delay
             for (let i = 0; i < text.length; i++) {
                 const partialText = text.substring(0, i + 1);
                 setReactInputValue(element, partialText);
@@ -2432,13 +2432,14 @@ progress::-webkit-progress-value {
                 }
             }
 
-            // Also check for Project Title field
+            // Also check for Project Title field (always first, max 50 chars)
             const titleInput = document.querySelector('input#title');
             if (titleInput) {
                 formFields.unshift({
                     prompt: "Project Title",
                     element: titleInput,
-                    type: 'input'
+                    type: 'input',
+                    maxLength: 50 // Project title has 50 char limit
                 });
             }
 
@@ -2450,32 +2451,49 @@ progress::-webkit-progress-value {
 
             console.log(`Found ${formFields.length} form fields to fill`);
 
-            // Step 5: Generate AI responses for each field (keep under 50 characters)
+            // Step 5: Generate AI responses for each field
             toast.loading(`Generating AI responses for ${formFields.length} fields...`);
 
             for (let i = 0; i < formFields.length; i++) {
                 const field = formFields[i];
 
                 try {
-                    // Determine answer length from instructions
-                    let maxLength = 500; // Default reasonable length
+                    // Determine answer length from instructions - aim for MINIMUM requirement to save tokens
+                    let minLength = 50; // Minimum default
+                    let maxLength = 100; // Maximum default
                     let lengthInstruction = "";
 
+                    // Check if this field has a predefined maxLength (like Project Title)
+                    if (field.maxLength) {
+                        maxLength = field.maxLength;
+                        minLength = Math.min(30, maxLength - 10);
+                        lengthInstruction = `Keep it concise and under ${maxLength} characters. Aim for around ${minLength}-${maxLength} characters.`;
+                    }
                     // Check for word count requirements in context or prompt
-                    const wordCountMatch = (assignmentContext + field.prompt).match(/(\d+)\s*(?:words?|từ|characters?|ký tự)/i);
-                    if (wordCountMatch) {
-                        const requiredCount = parseInt(wordCountMatch[1]);
-                        // If word count specified, estimate characters (avg 5 chars per word + spaces)
-                        maxLength = requiredCount * 6;
-                        lengthInstruction = `Write approximately ${requiredCount} words (around ${maxLength} characters).`;
-                    } else if (field.prompt.toLowerCase().includes('title') || field.type === 'input') {
-                        // Titles should be short
-                        maxLength = 100;
-                        lengthInstruction = "Keep it concise (under 100 characters).";
-                    } else if (assignmentContext.toLowerCase().includes('essay') || assignmentContext.toLowerCase().includes('detailed')) {
-                        // Essays need more content
-                        maxLength = 2000;
-                        lengthInstruction = "Provide a detailed response (aim for 300-400 words).";
+                    else {
+                        const wordCountMatch = (assignmentContext + field.prompt).match(/(?:at least|minimum|min|ít nhất)\s*(\d+)\s*(?:words?|từ)/i);
+                        if (wordCountMatch) {
+                            const requiredWords = parseInt(wordCountMatch[1]);
+                            // Aim for MINIMUM requirement (avg 5 chars per word + spaces)
+                            minLength = requiredWords * 6;
+                            maxLength = minLength + 50; // Small buffer
+                            lengthInstruction = `Write exactly ${requiredWords} words (approximately ${minLength} characters). Do not exceed this.`;
+                        } else if (field.prompt.toLowerCase().includes('title') || field.type === 'input') {
+                            // Titles should be short (50 char max for project title)
+                            maxLength = 50;
+                            minLength = 30;
+                            lengthInstruction = "Keep it concise, under 50 characters.";
+                        } else if (assignmentContext.toLowerCase().includes('essay') || assignmentContext.toLowerCase().includes('detailed')) {
+                            // Essays - aim for minimum viable length
+                            minLength = 300;
+                            maxLength = 400;
+                            lengthInstruction = "Provide a concise response of around 50-70 words (300-400 characters).";
+                        } else {
+                            // Default short response
+                            minLength = 50;
+                            maxLength = 150;
+                            lengthInstruction = "Keep it brief, around 50-150 characters.";
+                        }
                     }
 
                     // Create a prompt for Gemini that includes context and the specific question
@@ -2489,7 +2507,7 @@ ${field.prompt}
 
 ${lengthInstruction}
 
-Provide only the answer, no explanations or meta-commentary.`;
+IMPORTANT: Keep your response as SHORT as possible while meeting the minimum requirement. Do not add extra content. Provide only the answer, no explanations or meta-commentary.`;
 
                     // Call Gemini API
                     const response = await fetch(`${CONSTANTS.GEMINI_API_URL}?key=${geminiAPI}`, {
@@ -2515,13 +2533,18 @@ Provide only the answer, no explanations or meta-commentary.`;
                     // Clean up the answer
                     answer = answer.trim();
                     
-                    // Only truncate if significantly over limit (allow 20% overflow)
-                    if (answer.length > maxLength * 1.2) {
-                        answer = answer.substring(0, maxLength) + "...";
+                    // Strictly enforce maximum length to save tokens
+                    if (answer.length > maxLength) {
+                        answer = answer.substring(0, maxLength).trim();
+                        // Try to end at a word boundary
+                        const lastSpace = answer.lastIndexOf(' ');
+                        if (lastSpace > maxLength * 0.8) {
+                            answer = answer.substring(0, lastSpace);
+                        }
                     }
 
                     field.answer = answer;
-                    console.log(`Generated answer for "${field.prompt.substring(0, 30)}..." (${answer.length} chars)`);
+                    console.log(`Generated answer for "${field.prompt.substring(0, 30)}..." (${answer.length} chars, target: ${minLength}-${maxLength})`);
 
                     // Small delay to avoid rate limiting
                     await wait(500);
@@ -2533,32 +2556,180 @@ Provide only the answer, no explanations or meta-commentary.`;
                 }
             }
 
-            // Step 6: Fill the form fields with sequential character input (0.05s interval)
-            toast.loading("Filling form fields with typing simulation...");
+            // Step 6: Fill form fields - Auto-fill Project Title, Manual paste for others
+            toast.loading("Preparing form fields...");
 
-            for (const field of formFields) {
-                if (!field.answer) continue;
+            // Separate Project Title from other fields
+            const projectTitleField = formFields.find(f => f.prompt === "Project Title");
+            const otherFields = formFields.filter(f => f.prompt !== "Project Title");
 
-                // Scroll field into view
-                field.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Auto-fill Project Title (working with anti-autofill)
+            if (projectTitleField && projectTitleField.answer) {
+                projectTitleField.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 await wait(300);
 
-                // Clear the field first
-                if (field.type === 'contenteditable') {
-                    field.element.innerText = '';
-                    field.element.focus();
-                } else {
-                    setReactInputValue(field.element, '');
-                    field.element.focus();
-                }
-
+                // Clear and fill Project Title
+                setReactInputValue(projectTitleField.element, '');
+                projectTitleField.element.focus();
                 await wait(200);
 
-                // Simulate typing character by character at fastest speed
-                await simulateTyping(field.element, field.answer, 1); // 1ms = fastest supported
+                // Simulate typing for Project Title
+                await simulateTyping(projectTitleField.element, projectTitleField.answer, 10);
+                console.log(`✓ Auto-filled Project Title: ${projectTitleField.answer}`);
+                await wait(500);
+            }
 
-                console.log(`Filled field: ${field.prompt.substring(0, 30)}...`);
-                await wait(300); // Wait between fields
+            // For other fields: Create manual paste UI
+            if (otherFields.length > 0) {
+                toast.loading("Creating copy-paste helpers for remaining fields...");
+
+                for (const field of otherFields) {
+                    if (!field.answer) continue;
+
+                    // Scroll field into view
+                    field.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    await wait(300);
+
+                    // Find the parent container to insert the helper div
+                    const fieldContainer = field.element.closest('.rc-SubmissionPartEditView') || 
+                                         field.element.closest('.rc-FormPart') ||
+                                         field.element.parentElement;
+
+                    if (!fieldContainer) continue;
+
+                    // Check if helper already exists
+                    if (fieldContainer.querySelector('.coursera-tool-paste-helper')) continue;
+
+                    // Create helper div with answer and copy button
+                    const helperDiv = document.createElement('div');
+                    helperDiv.className = 'coursera-tool-paste-helper';
+                    helperDiv.style.cssText = `
+                        margin-top: 12px;
+                        padding: 12px;
+                        background-color: #f3f4f6;
+                        border: 1px solid #d1d5db;
+                        border-radius: 8px;
+                        font-family: system-ui, -apple-system, sans-serif;
+                    `;
+
+                    // Message
+                    const messageDiv = document.createElement('div');
+                    messageDiv.style.cssText = `
+                        color: #6b7280;
+                        font-size: 12px;
+                        margin-bottom: 8px;
+                        font-style: italic;
+                    `;
+                    messageDiv.textContent = '⚠️ Answer requires manual paste. Please copy and paste the following answer:';
+
+                    // Answer textbox
+                    const answerTextbox = document.createElement('textarea');
+                    answerTextbox.value = field.answer;
+                    answerTextbox.readOnly = true;
+                    answerTextbox.style.cssText = `
+                        width: 100%;
+                        min-height: 80px;
+                        padding: 8px;
+                        border: 1px solid #d1d5db;
+                        border-radius: 4px;
+                        font-size: 13px;
+                        font-family: monospace;
+                        background-color: white;
+                        resize: vertical;
+                        margin-bottom: 8px;
+                    `;
+
+                    // Copy button
+                    const copyButton = document.createElement('button');
+                    copyButton.textContent = '📋 Copy Answer';
+                    copyButton.style.cssText = `
+                        background-color: #2563eb;
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        padding: 8px 16px;
+                        font-size: 13px;
+                        font-weight: 500;
+                        cursor: pointer;
+                        width: 100%;
+                    `;
+                    copyButton.onclick = async () => {
+                        try {
+                            await navigator.clipboard.writeText(field.answer);
+                            copyButton.textContent = '✓ Copied!';
+                            copyButton.style.backgroundColor = '#16a34a';
+                            setTimeout(() => {
+                                copyButton.textContent = '📋 Copy Answer';
+                                copyButton.style.backgroundColor = '#2563eb';
+                            }, 2000);
+                        } catch (err) {
+                            // Fallback: select text
+                            answerTextbox.select();
+                            document.execCommand('copy');
+                            copyButton.textContent = '✓ Copied!';
+                            copyButton.style.backgroundColor = '#16a34a';
+                        }
+                    };
+
+                    // Assemble helper div
+                    helperDiv.appendChild(messageDiv);
+                    helperDiv.appendChild(answerTextbox);
+                    helperDiv.appendChild(copyButton);
+
+                    // Insert after the field's parent container
+                    fieldContainer.appendChild(helperDiv);
+
+                    console.log(`Created paste helper for: ${field.prompt.substring(0, 30)}...`);
+                }
+
+                toast.success("Copy-paste helpers created! Please manually paste answers into fields.");
+            }
+
+            // Step 6.5: Wait for user to fill all fields manually
+            if (otherFields.length > 0) {
+                toast.loading("Waiting for you to paste answers into all fields...");
+
+                // Function to check if a field is filled
+                const isFieldFilled = (field) => {
+                    if (field.type === 'contenteditable') {
+                        const text = field.element.innerText.trim();
+                        return text.length > 10; // At least 10 characters
+                    } else {
+                        const text = field.element.value.trim();
+                        return text.length > 10;
+                    }
+                };
+
+                // Poll until all fields are filled
+                let allFilled = false;
+                let checkCount = 0;
+                const maxChecks = 600; // 10 minutes max (600 * 1000ms)
+
+                while (!allFilled && checkCount < maxChecks) {
+                    // Check all other fields
+                    const filledFields = otherFields.filter(isFieldFilled);
+                    const remainingFields = otherFields.length - filledFields.length;
+
+                    if (remainingFields === 0) {
+                        allFilled = true;
+                        toast.success("All fields filled! Proceeding with submission...");
+                        break;
+                    }
+
+                    // Update toast every 5 seconds
+                    if (checkCount % 5 === 0) {
+                        toast.loading(`Waiting for ${remainingFields} field(s) to be filled...`);
+                    }
+
+                    await wait(1000); // Check every second
+                    checkCount++;
+                }
+
+                if (!allFilled) {
+                    toast.error("Timeout waiting for fields to be filled. Please complete manually.");
+                    setLoadingStatus(prev => ({...prev, isLoadingSubmitPeerGrading: false}));
+                    return;
+                }
             }
 
             // Step 7: Handle file uploads (excluding them initially as per flow)

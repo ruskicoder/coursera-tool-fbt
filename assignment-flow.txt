@@ -1,3 +1,5 @@
+[deprecated]
+
 fix the assignment function to be AI powered:
 
 extract the assignment task in div:

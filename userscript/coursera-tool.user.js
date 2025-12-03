@@ -25,6 +25,11 @@
     'use strict';
 
     // ==========================================
+    // VERSION & CONSTANTS
+    // ==========================================
+    const VERSION = "1.0.0"; // Synced with @version in metadata
+
+    // ==========================================
     // ENVIRONMENT CHECK
     // ==========================================
 
@@ -3242,10 +3247,10 @@ Provide only the document content, no meta-commentary.`;
                 top: `${position.y}px`,
                 right: `${position.x}px`,
                 zIndex: 9999,
-                width: '320px',
+                width: '380px',
                 backgroundColor: 'white',
-                borderRadius: '12px',
-                boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+                borderRadius: '16px',
+                boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
                 border: '1px solid #e5e7eb',
                 overflow: 'hidden',
                 fontFamily: 'system-ui, -apple-system, sans-serif',
@@ -3256,8 +3261,8 @@ Provide only the document content, no meta-commentary.`;
             // Header
             React.createElement("div", {
                 style: {
-                    backgroundColor: '#f9fafb',
-                    padding: '12px 16px',
+                    backgroundColor: 'white',
+                    padding: '16px 20px',
                     borderBottom: '1px solid #e5e7eb',
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -3267,14 +3272,25 @@ Provide only the document content, no meta-commentary.`;
                 },
                 onMouseDown: handleMouseDown
             },
-                React.createElement("h3", {
+                React.createElement("div", {
                     style: {
-                        fontWeight: '600',
-                        color: '#374151',
-                        margin: 0,
-                        fontSize: '16px'
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px'
                     }
-                }, "Coursera Tool"),
+                },
+                    React.createElement("span", {
+                        style: { fontSize: '24px' }
+                    }, "🎬"),
+                    React.createElement("h3", {
+                        style: {
+                            fontWeight: '700',
+                            color: '#1f2937',
+                            margin: 0,
+                            fontSize: '18px'
+                        }
+                    }, "Course Progress")
+                ),
                 React.createElement("button", {
                     onClick: () => toggleConfig("isShowControlPanel"),
                     style: {
@@ -3282,10 +3298,10 @@ Provide only the document content, no meta-commentary.`;
                         border: 'none',
                         color: '#9ca3af',
                         cursor: 'pointer',
-                        fontSize: '20px',
+                        fontSize: '24px',
                         padding: '0',
-                        width: '24px',
-                        height: '24px',
+                        width: '28px',
+                        height: '28px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center'
@@ -3297,173 +3313,333 @@ Provide only the document content, no meta-commentary.`;
             // Body
             React.createElement("div", {
                 style: {
-                    padding: '16px',
+                    padding: '20px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '12px'
+                    gap: '16px'
                 }
             },
-                // Complete Week Button
-                React.createElement("button", {
-                    onClick: () => bypassCourseContent(setLoadingStatus),
-                    disabled: loadingStatus.isLoadingCompleteWeek,
-                    style: {
-                        width: '100%',
-                        backgroundColor: loadingStatus.isLoadingCompleteWeek ? '#9ca3af' : '#16a34a',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        padding: '10px 16px',
-                        cursor: loadingStatus.isLoadingCompleteWeek ? 'not-allowed' : 'pointer',
-                        fontWeight: '500',
-                        fontSize: '14px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px'
-                    }
-                },
-                    loadingStatus.isLoadingCompleteWeek ? "⏳ Processing..." : "✓ Complete Week"
-                ),
-
-                // Quiz Solver Button
-                React.createElement("button", {
-                    onClick: () => handleAutoQuiz(setLoadingStatus),
-                    disabled: loadingStatus.isLoadingQuiz,
-                    style: {
-                        width: '100%',
-                        backgroundColor: loadingStatus.isLoadingQuiz ? '#9ca3af' : '#2563eb',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        padding: '10px 16px',
-                        cursor: loadingStatus.isLoadingQuiz ? 'not-allowed' : 'pointer',
-                        fontWeight: '500',
-                        fontSize: '14px'
-                    }
-                }, loadingStatus.isLoadingQuiz ? "⏳ Solving..." : "🧠 Solve Quiz (Gemini)"),
-
-                // Auto Submit Toggle
-                React.createElement("label", {
-                    style: {
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        cursor: 'pointer',
-                        border: '1px solid #e5e7eb',
-                        padding: '10px 12px',
-                        borderRadius: '8px',
-                        backgroundColor: '#f9fafb',
-                        fontSize: '13px'
-                    }
-                },
-                    React.createElement("input", {
-                        type: "checkbox",
-                        checked: config.isAutoSubmitQuiz,
-                        onChange: () => toggleConfig("isAutoSubmitQuiz"),
-                        style: { cursor: 'pointer' }
-                    }),
-                    React.createElement("span", null, "Auto Submit Quiz")
-                ),
-
-                // Peer Review & Assignment Row
+                // Course Progress Section - Skip videos & readings + Skip discussions
                 React.createElement("div", {
                     style: {
                         display: 'grid',
                         gridTemplateColumns: '1fr 1fr',
-                        gap: '8px'
+                        gap: '12px'
+                    }
+                },
+                    React.createElement("button", {
+                        onClick: () => bypassCourseContent(setLoadingStatus),
+                        disabled: loadingStatus.isLoadingCompleteWeek,
+                        style: {
+                            backgroundColor: loadingStatus.isLoadingCompleteWeek ? '#93c5fd' : '#2563eb',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '12px',
+                            padding: '14px 16px',
+                            cursor: loadingStatus.isLoadingCompleteWeek ? 'not-allowed' : 'pointer',
+                            fontWeight: '600',
+                            fontSize: '14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            transition: 'all 0.2s'
+                        }
+                    },
+                        React.createElement("span", { style: { fontSize: '18px' } }, "🎯"),
+                        loadingStatus.isLoadingCompleteWeek ? "Processing..." : "Skip videos & readings"
+                    ),
+
+                    React.createElement("button", {
+                        onClick: () => handleDiscussionPrompt(setLoadingStatus),
+                        disabled: loadingStatus.isLoadingDiscuss,
+                        style: {
+                            backgroundColor: loadingStatus.isLoadingDiscuss ? '#93c5fd' : '#2563eb',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '12px',
+                            padding: '14px 16px',
+                            cursor: loadingStatus.isLoadingDiscuss ? 'not-allowed' : 'pointer',
+                            fontWeight: '600',
+                            fontSize: '14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            transition: 'all 0.2s'
+                        }
+                    },
+                        React.createElement("span", { style: { fontSize: '18px' } }, "💬"),
+                        loadingStatus.isLoadingDiscuss ? "Posting..." : "Skip discussions"
+                    )
+                ),
+
+                // Assignment Section Header
+                React.createElement("div", {
+                    style: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        marginTop: '8px'
+                    }
+                },
+                    React.createElement("span", { style: { fontSize: '22px' } }, "📋"),
+                    React.createElement("h4", {
+                        style: {
+                            fontWeight: '700',
+                            color: '#1f2937',
+                            margin: 0,
+                            fontSize: '16px'
+                        }
+                    }, "Assignment")
+                ),
+
+                // Assignment Buttons Row
+                React.createElement("div", {
+                    style: {
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(3, 1fr)',
+                        gap: '10px'
                     }
                 },
                     React.createElement("button", {
                         onClick: () => handlePeerGradedAssignment(setLoadingStatus),
                         disabled: loadingStatus.isLoadingSubmitPeerGrading,
                         style: {
-                            backgroundColor: loadingStatus.isLoadingSubmitPeerGrading ? '#9ca3af' : '#9333ea',
+                            backgroundColor: loadingStatus.isLoadingSubmitPeerGrading ? '#93c5fd' : '#2563eb',
                             color: 'white',
                             border: 'none',
-                            borderRadius: '8px',
-                            padding: '10px 12px',
+                            borderRadius: '12px',
+                            padding: '12px 14px',
                             cursor: loadingStatus.isLoadingSubmitPeerGrading ? 'not-allowed' : 'pointer',
-                            fontWeight: '500',
-                            fontSize: '13px'
+                            fontWeight: '600',
+                            fontSize: '13px',
+                            transition: 'all 0.2s'
                         },
-                        title: "AI-powered assignment completion"
-                    }, loadingStatus.isLoadingSubmitPeerGrading ? "⏳" : "🤖 Auto Grade"),
+                        title: "AI-powered assignment submission"
+                    }, loadingStatus.isLoadingSubmitPeerGrading ? "⏳" : "Auto submit"),
 
                     React.createElement("button", {
-                        onClick: () => handlePeerReview(setLoadingStatus),
-                        disabled: loadingStatus.isLoadingReview,
+                        onClick: () => handlePeerGradedAssignment(setLoadingStatus),
+                        disabled: loadingStatus.isLoadingSubmitPeerGrading,
                         style: {
-                            backgroundColor: loadingStatus.isLoadingReview ? '#9ca3af' : '#f97316',
+                            backgroundColor: loadingStatus.isLoadingSubmitPeerGrading ? '#93c5fd' : '#2563eb',
                             color: 'white',
                             border: 'none',
-                            borderRadius: '8px',
-                            padding: '10px 12px',
-                            cursor: loadingStatus.isLoadingReview ? 'not-allowed' : 'pointer',
-                            fontWeight: '500',
-                            fontSize: '13px'
-                        }
-                    }, loadingStatus.isLoadingReview ? "⏳" : "✓ Review Peer")
+                            borderRadius: '12px',
+                            padding: '12px 14px',
+                            cursor: loadingStatus.isLoadingSubmitPeerGrading ? 'not-allowed' : 'pointer',
+                            fontWeight: '600',
+                            fontSize: '13px',
+                            transition: 'all 0.2s'
+                        },
+                        title: "AI-powered auto grading"
+                    }, loadingStatus.isLoadingSubmitPeerGrading ? "⏳" : "Auto grade"),
+
+                    React.createElement("button", {
+                        onClick: () => requestGradingByPeer(),
+                        style: {
+                            backgroundColor: '#2563eb',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '12px',
+                            padding: '12px 14px',
+                            cursor: 'pointer',
+                            fontWeight: '600',
+                            fontSize: '13px',
+                            transition: 'all 0.2s'
+                        },
+                        title: "Disable AI grading"
+                    }, "Disable AI grading")
                 ),
 
-                // Discussion Prompts Button
+                // Peer Review Button
                 React.createElement("button", {
-                    onClick: () => handleDiscussionPrompt(setLoadingStatus),
-                    disabled: loadingStatus.isLoadingDiscuss,
+                    onClick: () => handlePeerReview(setLoadingStatus),
+                    disabled: loadingStatus.isLoadingReview,
                     style: {
                         width: '100%',
-                        backgroundColor: loadingStatus.isLoadingDiscuss ? '#9ca3af' : '#0891b2',
+                        backgroundColor: loadingStatus.isLoadingReview ? '#93c5fd' : '#2563eb',
                         color: 'white',
                         border: 'none',
-                        borderRadius: '8px',
-                        padding: '10px 16px',
-                        cursor: loadingStatus.isLoadingDiscuss ? 'not-allowed' : 'pointer',
-                        fontWeight: '500',
-                        fontSize: '14px'
+                        borderRadius: '12px',
+                        padding: '14px 16px',
+                        cursor: loadingStatus.isLoadingReview ? 'not-allowed' : 'pointer',
+                        fontWeight: '600',
+                        fontSize: '14px',
+                        transition: 'all 0.2s'
                     }
-                }, loadingStatus.isLoadingDiscuss ? "⏳ Posting..." : "💬 Discussion Prompts"),
+                }, loadingStatus.isLoadingReview ? "⏳ Processing..." : "Peer review"),
 
-                // Settings Section
+                // Get URL Section (placeholder for future implementation)
                 React.createElement("div", {
                     style: {
-                        paddingTop: '12px',
-                        borderTop: '1px solid #e5e7eb'
+                        display: 'flex',
+                        gap: '10px',
+                        alignItems: 'center'
+                    }
+                },
+                    React.createElement("button", {
+                        style: {
+                            backgroundColor: '#2563eb',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '12px',
+                            padding: '12px 20px',
+                            cursor: 'pointer',
+                            fontWeight: '600',
+                            fontSize: '14px',
+                            whiteSpace: 'nowrap'
+                        },
+                        title: "Get submission URL (coming soon)"
+                    }, "Get URL"),
+                    React.createElement("input", {
+                        type: "text",
+                        readOnly: true,
+                        placeholder: "Your submission's url here",
+                        style: {
+                            flex: 1,
+                            padding: '12px 16px',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '12px',
+                            fontSize: '13px',
+                            backgroundColor: '#f9fafb',
+                            color: '#6b7280'
+                        }
+                    }),
+                    React.createElement("button", {
+                        style: {
+                            backgroundColor: '#2563eb',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '12px',
+                            padding: '12px 16px',
+                            cursor: 'pointer',
+                            fontSize: '18px'
+                        },
+                        title: "Copy URL"
+                    }, "📋")
+                ),
+
+                // Quiz Section Header
+                React.createElement("div", {
+                    style: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        marginTop: '8px'
+                    }
+                },
+                    React.createElement("span", { style: { fontSize: '22px' } }, "❓"),
+                    React.createElement("h4", {
+                        style: {
+                            fontWeight: '700',
+                            color: '#1f2937',
+                            margin: 0,
+                            fontSize: '16px'
+                        }
+                    }, "Quiz")
+                ),
+
+                // Quiz Section - Gemini API + Start Button
+                React.createElement("div", {
+                    style: {
+                        display: 'flex',
+                        gap: '10px',
+                        alignItems: 'center'
                     }
                 },
                     React.createElement("div", {
                         style: {
-                            marginBottom: '8px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            color: '#6b7280',
-                            letterSpacing: '0.05em'
+                            flex: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px'
                         }
-                    }, "SETTINGS"),
-
-                    React.createElement("input", {
-                        type: "password",
-                        key: "gemini-api-input",
+                    },
+                        React.createElement("label", {
+                            style: {
+                                fontSize: '13px',
+                                fontWeight: '600',
+                                color: '#374151'
+                            }
+                        }, "Gemini API:"),
+                        React.createElement("input", {
+                            type: "password",
+                            key: "gemini-api-input",
+                            style: {
+                                width: '100%',
+                                padding: '10px 14px',
+                                border: '1px solid #e5e7eb',
+                                borderRadius: '10px',
+                                fontSize: '13px',
+                                boxSizing: 'border-box',
+                                backgroundColor: 'white'
+                            },
+                            placeholder: "Enter Gemini API",
+                            value: config.geminiAPI || "",
+                            onChange: (e) => {
+                                const value = e.target.value;
+                                updateConfig("geminiAPI", value);
+                            }
+                        })
+                    ),
+                    React.createElement("button", {
+                        onClick: () => handleAutoQuiz(setLoadingStatus),
+                        disabled: loadingStatus.isLoadingQuiz,
                         style: {
-                            width: '100%',
-                            padding: '8px 12px',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '8px',
+                            backgroundColor: loadingStatus.isLoadingQuiz ? '#93c5fd' : '#2563eb',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '12px',
+                            padding: '12px 24px',
+                            cursor: loadingStatus.isLoadingQuiz ? 'not-allowed' : 'pointer',
+                            fontWeight: '600',
                             fontSize: '14px',
-                            boxSizing: 'border-box',
-                            marginBottom: '12px'
-                        },
-                        placeholder: "Gemini API Key",
-                        value: config.geminiAPI || "",
-                        onChange: (e) => {
-                            const value = e.target.value;
-                            console.log(`Coursera Tool: API key input changed: ${value.substring(0, 15)}...`);
-                            updateConfig("geminiAPI", value);
-                        },
-                        onInput: (e) => {
-                            const value = e.target.value;
-                            updateConfig("geminiAPI", value);
+                            marginTop: '24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            whiteSpace: 'nowrap'
                         }
-                    })
+                    },
+                        React.createElement("span", { style: { fontSize: '16px' } }, "▶"),
+                        loadingStatus.isLoadingQuiz ? "Solving..." : "Start"
+                    )
+                )
+            ),
+
+            // Footer
+            React.createElement("div", {
+                style: {
+                    padding: '12px 20px',
+                    borderTop: '1px solid #e5e7eb',
+                    backgroundColor: '#f9fafb',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '12px',
+                    color: '#6b7280'
+                }
+            },
+                React.createElement("span", {
+                    style: { fontWeight: '500' }
+                }, `v${VERSION}`),
+                React.createElement("a", {
+                    href: "https://github.com/ruskicoder",
+                    target: "_blank",
+                    rel: "noopener noreferrer",
+                    style: {
+                        color: '#2563eb',
+                        textDecoration: 'none',
+                        fontWeight: '500',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                    }
+                },
+                    React.createElement("span", { style: { fontSize: '14px' } }, "🔗"),
+                    "@ruskicoder"
                 )
             ),
 

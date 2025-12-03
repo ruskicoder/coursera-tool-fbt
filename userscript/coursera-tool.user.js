@@ -3224,22 +3224,27 @@ Provide only the document content, no meta-commentary.`;
                     bottom: '20px',
                     right: '20px',
                     backgroundColor: '#2563eb',
-                    padding: '12px',
+                    padding: '8px',
                     borderRadius: '50%',
                     cursor: 'pointer',
                     boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
                     zIndex: 9999,
-                    width: '48px',
-                    height: '48px',
+                    width: '40px',
+                    height: '40px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center'
                 },
                 onClick: () => toggleConfig("isShowControlPanel"),
                 title: "Show Coursera Tool"
-            }, React.createElement("span", {
-                style: { color: 'white', fontSize: '24px' }
-            }, "⚙"));
+            }, React.createElement("img", {
+                src: "https://www.coursera.org/favicon.ico",
+                alt: "Coursera Tool",
+                style: {
+                    width: '24px',
+                    height: '24px',
+                    }
+            }));
         }
 
         // Main panel view - Compact Design

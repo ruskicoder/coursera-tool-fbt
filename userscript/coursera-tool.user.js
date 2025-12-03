@@ -25,11 +25,6 @@
     'use strict';
 
     // ==========================================
-    // VERSION & CONSTANTS
-    // ==========================================
-    const VERSION = "1.0.0"; // Synced with @version in metadata
-
-    // ==========================================
     // ENVIRONMENT CHECK
     // ==========================================
 
@@ -3067,6 +3062,14 @@ Provide only the document content, no meta-commentary.`;
     // REACT APP COMPONENT & STATE MANAGEMENT
     // ==========================================
 
+    // Get version from GM metadata
+    const SCRIPT_VERSION = GM_info?.script?.version || '1.0.0';
+
+    // Logo image in base64 format (16x16px)
+    // To add your logo: Convert your image to base64 at https://base64.guru/converter/encode/image
+    // Then replace the empty string below with: "data:image/png;base64,YOUR_BASE64_STRING_HERE"
+    const LOGO_BASE64 = "data:image/png;base64,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";
+
     /**
      * React App Component
      * Main UI control panel for the Coursera Tool
@@ -3239,7 +3242,7 @@ Provide only the document content, no meta-commentary.`;
             }, "⚙"));
         }
 
-        // Main panel view
+        // Main panel view - Compact Design
         return React.createElement("div", {
             ref: panelRef,
             style: {
@@ -3249,21 +3252,21 @@ Provide only the document content, no meta-commentary.`;
                 zIndex: 9999,
                 width: '380px',
                 backgroundColor: 'white',
-                borderRadius: '16px',
-                boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
-                border: '1px solid #e5e7eb',
+                borderRadius: '12px',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                border: '1px solid #e0e0e0',
                 overflow: 'hidden',
                 fontFamily: 'system-ui, -apple-system, sans-serif',
-                fontSize: '14px',
+                fontSize: '13px',
                 cursor: isDragging ? 'grabbing' : 'default'
             }
         },
             // Header
             React.createElement("div", {
                 style: {
-                    backgroundColor: 'white',
-                    padding: '16px 20px',
-                    borderBottom: '1px solid #e5e7eb',
+                    backgroundColor: '#f5f5f5',
+                    padding: '5px 8px',
+                    borderBottom: '1px solid #e0e0e0',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
@@ -3276,32 +3279,43 @@ Provide only the document content, no meta-commentary.`;
                     style: {
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '10px'
+                        gap: '6px'
                     }
                 },
+                    // Logo or emoji
+                    LOGO_BASE64 
+                        ? React.createElement("img", {
+                            src: LOGO_BASE64,
+                            alt: "Logo",
+                            style: {
+                                width: '16px',
+                                height: '16px',
+                                objectFit: 'contain'
+                            }
+                        })
+                        : React.createElement("span", {
+                            style: { fontSize: '16px' }
+                        }, "🎬"),
+                    // Title
                     React.createElement("span", {
-                        style: { fontSize: '24px' }
-                    }, "🎬"),
-                    React.createElement("h3", {
                         style: {
                             fontWeight: '700',
-                            color: '#1f2937',
-                            margin: 0,
-                            fontSize: '18px'
+                            fontSize: '12px',
+                            color: '#1a1a1a'
                         }
-                    }, "Course Progress")
+                    }, "Coursera Tool")
                 ),
                 React.createElement("button", {
                     onClick: () => toggleConfig("isShowControlPanel"),
                     style: {
                         background: 'none',
                         border: 'none',
-                        color: '#9ca3af',
+                        color: '#666',
                         cursor: 'pointer',
-                        fontSize: '24px',
+                        fontSize: '16px',
                         padding: '0',
-                        width: '28px',
-                        height: '28px',
+                        width: '18px',
+                        height: '18px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center'
@@ -3313,65 +3327,49 @@ Provide only the document content, no meta-commentary.`;
             // Body
             React.createElement("div", {
                 style: {
-                    padding: '20px',
+                    padding: '8px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '16px'
+                    gap: '5px'
                 }
             },
-                // Course Progress Section - Skip videos & readings + Skip discussions
+                // Course Progress Section - Two buttons in a row
                 React.createElement("div", {
                     style: {
                         display: 'grid',
                         gridTemplateColumns: '1fr 1fr',
-                        gap: '12px'
+                        gap: '4px'
                     }
                 },
                     React.createElement("button", {
                         onClick: () => bypassCourseContent(setLoadingStatus),
                         disabled: loadingStatus.isLoadingCompleteWeek,
                         style: {
-                            backgroundColor: loadingStatus.isLoadingCompleteWeek ? '#93c5fd' : '#2563eb',
+                            backgroundColor: loadingStatus.isLoadingCompleteWeek ? '#9ca3af' : '#2563eb',
                             color: 'white',
                             border: 'none',
-                            borderRadius: '12px',
-                            padding: '14px 16px',
+                            borderRadius: '6px',
+                            padding: '6px 8px',
                             cursor: loadingStatus.isLoadingCompleteWeek ? 'not-allowed' : 'pointer',
                             fontWeight: '600',
-                            fontSize: '14px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            transition: 'all 0.2s'
+                            fontSize: '12px'
                         }
-                    },
-                        React.createElement("span", { style: { fontSize: '18px' } }, "🎯"),
-                        loadingStatus.isLoadingCompleteWeek ? "Processing..." : "Skip videos & readings"
-                    ),
+                    }, loadingStatus.isLoadingCompleteWeek ? "⏳" : "Skip videos & readings"),
 
                     React.createElement("button", {
                         onClick: () => handleDiscussionPrompt(setLoadingStatus),
                         disabled: loadingStatus.isLoadingDiscuss,
                         style: {
-                            backgroundColor: loadingStatus.isLoadingDiscuss ? '#93c5fd' : '#2563eb',
+                            backgroundColor: loadingStatus.isLoadingDiscuss ? '#9ca3af' : '#2563eb',
                             color: 'white',
                             border: 'none',
-                            borderRadius: '12px',
-                            padding: '14px 16px',
+                            borderRadius: '6px',
+                            padding: '6px 8px',
                             cursor: loadingStatus.isLoadingDiscuss ? 'not-allowed' : 'pointer',
                             fontWeight: '600',
-                            fontSize: '14px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            transition: 'all 0.2s'
+                            fontSize: '12px'
                         }
-                    },
-                        React.createElement("span", { style: { fontSize: '18px' } }, "💬"),
-                        loadingStatus.isLoadingDiscuss ? "Posting..." : "Skip discussions"
-                    )
+                    }, loadingStatus.isLoadingDiscuss ? "⏳" : "Skip discussions")
                 ),
 
                 // Assignment Section Header
@@ -3379,62 +3377,62 @@ Provide only the document content, no meta-commentary.`;
                     style: {
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '10px',
-                        marginTop: '8px'
+                        gap: '4px',
+                        marginTop: '2px'
                     }
                 },
-                    React.createElement("span", { style: { fontSize: '22px' } }, "📋"),
+                    React.createElement("span", {
+                        style: { fontSize: '14px' }
+                    }, "📋"),
                     React.createElement("h4", {
                         style: {
                             fontWeight: '700',
-                            color: '#1f2937',
+                            color: '#1a1a1a',
                             margin: 0,
-                            fontSize: '16px'
+                            fontSize: '13px'
                         }
                     }, "Assignment")
                 ),
 
-                // Assignment Buttons Row
+                // Assignment Buttons - Three in a row
                 React.createElement("div", {
                     style: {
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(3, 1fr)',
-                        gap: '10px'
+                        gridTemplateColumns: '1fr 1fr 1fr',
+                        gap: '4px'
                     }
                 },
                     React.createElement("button", {
                         onClick: () => handlePeerGradedAssignment(setLoadingStatus),
                         disabled: loadingStatus.isLoadingSubmitPeerGrading,
                         style: {
-                            backgroundColor: loadingStatus.isLoadingSubmitPeerGrading ? '#93c5fd' : '#2563eb',
+                            backgroundColor: loadingStatus.isLoadingSubmitPeerGrading ? '#9ca3af' : '#2563eb',
                             color: 'white',
                             border: 'none',
-                            borderRadius: '12px',
-                            padding: '12px 14px',
+                            borderRadius: '6px',
+                            padding: '6px 8px',
                             cursor: loadingStatus.isLoadingSubmitPeerGrading ? 'not-allowed' : 'pointer',
                             fontWeight: '600',
-                            fontSize: '13px',
-                            transition: 'all 0.2s'
+                            fontSize: '11px'
                         },
                         title: "AI-powered assignment submission"
                     }, loadingStatus.isLoadingSubmitPeerGrading ? "⏳" : "Auto submit"),
 
                     React.createElement("button", {
-                        onClick: () => handlePeerGradedAssignment(setLoadingStatus),
-                        disabled: loadingStatus.isLoadingSubmitPeerGrading,
+                        onClick: () => handlePeerReview(setLoadingStatus),
+                        disabled: loadingStatus.isLoadingReview,
                         style: {
-                            backgroundColor: loadingStatus.isLoadingSubmitPeerGrading ? '#93c5fd' : '#2563eb',
+                            backgroundColor: loadingStatus.isLoadingReview ? '#9ca3af' : '#2563eb',
                             color: 'white',
                             border: 'none',
-                            borderRadius: '12px',
-                            padding: '12px 14px',
-                            cursor: loadingStatus.isLoadingSubmitPeerGrading ? 'not-allowed' : 'pointer',
+                            borderRadius: '6px',
+                            padding: '6px 8px',
+                            cursor: loadingStatus.isLoadingReview ? 'not-allowed' : 'pointer',
                             fontWeight: '600',
-                            fontSize: '13px',
-                            transition: 'all 0.2s'
+                            fontSize: '11px'
                         },
-                        title: "AI-powered auto grading"
-                    }, loadingStatus.isLoadingSubmitPeerGrading ? "⏳" : "Auto grade"),
+                        title: "Complete peer reviews"
+                    }, loadingStatus.isLoadingReview ? "⏳" : "Peer review"),
 
                     React.createElement("button", {
                         onClick: () => requestGradingByPeer(),
@@ -3442,83 +3440,14 @@ Provide only the document content, no meta-commentary.`;
                             backgroundColor: '#2563eb',
                             color: 'white',
                             border: 'none',
-                            borderRadius: '12px',
-                            padding: '12px 14px',
+                            borderRadius: '6px',
+                            padding: '6px 8px',
                             cursor: 'pointer',
                             fontWeight: '600',
-                            fontSize: '13px',
-                            transition: 'all 0.2s'
+                            fontSize: '11px'
                         },
                         title: "Disable AI grading"
-                    }, "Disable AI grading")
-                ),
-
-                // Peer Review Button
-                React.createElement("button", {
-                    onClick: () => handlePeerReview(setLoadingStatus),
-                    disabled: loadingStatus.isLoadingReview,
-                    style: {
-                        width: '100%',
-                        backgroundColor: loadingStatus.isLoadingReview ? '#93c5fd' : '#2563eb',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '12px',
-                        padding: '14px 16px',
-                        cursor: loadingStatus.isLoadingReview ? 'not-allowed' : 'pointer',
-                        fontWeight: '600',
-                        fontSize: '14px',
-                        transition: 'all 0.2s'
-                    }
-                }, loadingStatus.isLoadingReview ? "⏳ Processing..." : "Peer review"),
-
-                // Get URL Section (placeholder for future implementation)
-                React.createElement("div", {
-                    style: {
-                        display: 'flex',
-                        gap: '10px',
-                        alignItems: 'center'
-                    }
-                },
-                    React.createElement("button", {
-                        style: {
-                            backgroundColor: '#2563eb',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '12px',
-                            padding: '12px 20px',
-                            cursor: 'pointer',
-                            fontWeight: '600',
-                            fontSize: '14px',
-                            whiteSpace: 'nowrap'
-                        },
-                        title: "Get submission URL (coming soon)"
-                    }, "Get URL"),
-                    React.createElement("input", {
-                        type: "text",
-                        readOnly: true,
-                        placeholder: "Your submission's url here",
-                        style: {
-                            flex: 1,
-                            padding: '12px 16px',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '12px',
-                            fontSize: '13px',
-                            backgroundColor: '#f9fafb',
-                            color: '#6b7280'
-                        }
-                    }),
-                    React.createElement("button", {
-                        style: {
-                            backgroundColor: '#2563eb',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '12px',
-                            padding: '12px 16px',
-                            cursor: 'pointer',
-                            fontSize: '18px'
-                        },
-                        title: "Copy URL"
-                    }, "📋")
+                    }, "⊘ AI grading")
                 ),
 
                 // Quiz Section Header
@@ -3526,26 +3455,28 @@ Provide only the document content, no meta-commentary.`;
                     style: {
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '10px',
-                        marginTop: '8px'
+                        gap: '4px',
+                        marginTop: '2px'
                     }
                 },
-                    React.createElement("span", { style: { fontSize: '22px' } }, "❓"),
+                    React.createElement("span", {
+                        style: { fontSize: '14px' }
+                    }, "💬"),
                     React.createElement("h4", {
                         style: {
                             fontWeight: '700',
-                            color: '#1f2937',
+                            color: '#1a1a1a',
                             margin: 0,
-                            fontSize: '16px'
+                            fontSize: '13px'
                         }
                     }, "Quiz")
                 ),
 
-                // Quiz Section - Gemini API + Start Button
+                // Quiz Section - API Input and Start Button
                 React.createElement("div", {
                     style: {
                         display: 'flex',
-                        gap: '10px',
+                        gap: '4px',
                         alignItems: 'center'
                     }
                 },
@@ -3553,28 +3484,28 @@ Provide only the document content, no meta-commentary.`;
                         style: {
                             flex: 1,
                             display: 'flex',
-                            flexDirection: 'column',
+                            alignItems: 'center',
                             gap: '4px'
                         }
                     },
-                        React.createElement("label", {
+                        React.createElement("span", {
                             style: {
-                                fontSize: '13px',
+                                fontSize: '11px',
                                 fontWeight: '600',
-                                color: '#374151'
+                                color: '#666',
+                                whiteSpace: 'nowrap'
                             }
                         }, "Gemini API:"),
                         React.createElement("input", {
                             type: "password",
                             key: "gemini-api-input",
                             style: {
-                                width: '100%',
-                                padding: '10px 14px',
-                                border: '1px solid #e5e7eb',
-                                borderRadius: '10px',
-                                fontSize: '13px',
-                                boxSizing: 'border-box',
-                                backgroundColor: 'white'
+                                flex: 1,
+                                padding: '5px 6px',
+                                border: '1px solid #d0d0d0',
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                                boxSizing: 'border-box'
                             },
                             placeholder: "Enter Gemini API",
                             value: config.geminiAPI || "",
@@ -3588,58 +3519,70 @@ Provide only the document content, no meta-commentary.`;
                         onClick: () => handleAutoQuiz(setLoadingStatus),
                         disabled: loadingStatus.isLoadingQuiz,
                         style: {
-                            backgroundColor: loadingStatus.isLoadingQuiz ? '#93c5fd' : '#2563eb',
+                            backgroundColor: loadingStatus.isLoadingQuiz ? '#9ca3af' : '#2563eb',
                             color: 'white',
                             border: 'none',
-                            borderRadius: '12px',
-                            padding: '12px 24px',
+                            borderRadius: '6px',
+                            padding: '5px 12px',
                             cursor: loadingStatus.isLoadingQuiz ? 'not-allowed' : 'pointer',
                             fontWeight: '600',
-                            fontSize: '14px',
-                            marginTop: '24px',
+                            fontSize: '12px',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '6px',
-                            whiteSpace: 'nowrap'
+                            gap: '3px'
                         }
                     },
-                        React.createElement("span", { style: { fontSize: '16px' } }, "▶"),
-                        loadingStatus.isLoadingQuiz ? "Solving..." : "Start"
+                        React.createElement("span", null, "▶"),
+                        React.createElement("span", null, loadingStatus.isLoadingQuiz ? "..." : "Start")
                     )
-                )
-            ),
+                ),
 
-            // Footer
-            React.createElement("div", {
-                style: {
-                    padding: '12px 20px',
-                    borderTop: '1px solid #e5e7eb',
-                    backgroundColor: '#f9fafb',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    fontSize: '12px',
-                    color: '#6b7280'
-                }
-            },
-                React.createElement("span", {
-                    style: { fontWeight: '500' }
-                }, `v${VERSION}`),
-                React.createElement("a", {
-                    href: "https://github.com/ruskicoder",
-                    target: "_blank",
-                    rel: "noopener noreferrer",
+                // Auto Submit Toggle
+                React.createElement("label", {
                     style: {
-                        color: '#2563eb',
-                        textDecoration: 'none',
-                        fontWeight: '500',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '4px'
+                        gap: '4px',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        marginLeft: '4px'
                     }
                 },
-                    React.createElement("span", { style: { fontSize: '14px' } }, "🔗"),
-                    "@ruskicoder"
+                    React.createElement("input", {
+                        type: "checkbox",
+                        checked: config.isAutoSubmitQuiz,
+                        onChange: () => toggleConfig("isAutoSubmitQuiz"),
+                        style: { cursor: 'pointer', width: '12px', height: '12px' }
+                    }),
+                    React.createElement("span", null, "Auto submit")
+                ),
+
+                // Footer
+                React.createElement("div", {
+                    style: {
+                        marginTop: '5px',
+                        paddingTop: '5px',
+                        borderTop: '1px solid #e0e0e0',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontSize: '10px',
+                        color: '#666'
+                    }
+                },
+                    React.createElement("span", {
+                        style: { fontWeight: '700' }
+                    }, `v${SCRIPT_VERSION}`),
+                    React.createElement("a", {
+                        href: "https://github.com/ruskicoder",
+                        target: "_blank",
+                        rel: "noopener noreferrer",
+                        style: {
+                            color: '#2563eb',
+                            textDecoration: 'none',
+                            fontWeight: '500'
+                        }
+                    }, "@ruskicoder")
                 )
             ),
 

@@ -22,11 +22,11 @@ This document specifies the requirements for a Coursera automation userscript th
 
 #### Acceptance Criteria
 
-1. WHEN a video completion is requested THEN the system SHALL set the video position to 0 seconds (beginning)
-2. WHEN the video position is at 0 seconds THEN the system SHALL send a playback rate change event to the Eventing API with playbackRate set to 2000 or higher
-3. WHEN the playback rate change is confirmed THEN the system SHALL allow the video to play at extreme speed until reaching the end
-4. WHEN the video reaches its duration endpoint THEN the system SHALL send a completion request to mark the video as finished
-5. WHEN sending the playback rate event THEN the system SHALL include all required telemetry data (videoId, courseId, videoPosition, videoDuration, userId, deviceId)
+1. WHEN a video completion is requested THEN the system SHALL send an authorization request via LearningHours_SendEvent GraphQL mutation with userActionType VIDEO_IS_PLAYING
+2. WHEN the authorization request succeeds THEN the system SHALL send a playback rate change event to the Eventing API with playbackRate set to 2000 or higher
+3. WHEN the playback rate event is sent THEN the system SHALL include videoPosition at 0 seconds and all required telemetry data (videoId, courseId, videoDuration, userId, deviceId)
+4. WHEN the playback rate change is confirmed THEN the system SHALL send the video ended request to endpoint `/api/opencourse.v1/user/{userId}/course/{courseSlug}/item/{itemId}/lecture/videoEvents/ended`
+5. WHEN the video ended request succeeds THEN the system SHALL mark the video as complete in the user's progress
 
 ### Requirement 2: Eventing API Integration
 
@@ -34,11 +34,11 @@ This document specifies the requirements for a Coursera automation userscript th
 
 #### Acceptance Criteria
 
-1. WHEN sending an eventing request THEN the system SHALL use the endpoint `https://www.coursera.org/api/rest/v1/eventing/info`
+1. WHEN sending an eventing request THEN the system SHALL use the endpoint `https://www.coursera.org/api/rest/v1/eventing/info` with POST method
 2. WHEN constructing the payload THEN the system SHALL include the key `eventingv3.click_button` with button name `video_playback_rate_switcher`
-3. WHEN including video player data THEN the system SHALL provide videoId, courseId, courseName, courseSlug, lessonId, moduleId, videoDuration, videoPosition, and playbackRate
+3. WHEN including video player data THEN the system SHALL provide videoId, courseId, courseName, courseSlug, lessonId, moduleId, videoDuration, videoPosition at 0, and playbackRate
 4. WHEN setting playback rate THEN the system SHALL use a value of 2000 or higher to achieve instant completion
-5. WHEN the request completes successfully THEN the system SHALL proceed with video completion marking
+5. WHEN the eventing request completes successfully THEN the system SHALL proceed with video ended request
 
 ### Requirement 3: Video Metadata Extraction
 
@@ -58,11 +58,11 @@ This document specifies the requirements for a Coursera automation userscript th
 
 #### Acceptance Criteria
 
-1. WHEN starting video completion THEN the system SHALL first send a position request setting videoPosition to 0
-2. WHEN the position is set to 0 THEN the system SHALL send the playback rate change event
-3. WHEN the playback rate event is sent THEN the system SHALL wait for the video to naturally progress to the end at extreme speed
-4. WHEN the video reaches the end THEN the system SHALL send the final completion request
-5. WHEN any request fails THEN the system SHALL abort the sequence and report the error
+1. WHEN starting video completion THEN the system SHALL first send the LearningHours_SendEvent authorization request with VIDEO_IS_PLAYING action
+2. WHEN the authorization succeeds THEN the system SHALL send the Eventing API request with playbackRate 2000+ and videoPosition 0
+3. WHEN the playback rate event succeeds THEN the system SHALL immediately send the video ended request without waiting
+4. WHEN the video ended request succeeds THEN the system SHALL mark the video as complete
+5. WHEN any request fails THEN the system SHALL log the error and continue with the next item
 
 ### Requirement 5: Reading Completion
 
@@ -70,11 +70,11 @@ This document specifies the requirements for a Coursera automation userscript th
 
 #### Acceptance Criteria
 
-1. WHEN a reading completion is requested THEN the system SHALL use the endpoint `onDemandSupplementCompletions.v1`
-2. WHEN marking a reading complete THEN the system SHALL send proper authorization via GraphQL LearningHours_SendEvent mutation
-3. WHEN the authorization succeeds THEN the system SHALL mark the reading as complete
-4. WHEN the completion request succeeds THEN the system SHALL update the user's progress
-5. WHEN any request fails THEN the system SHALL retry once before reporting failure
+1. WHEN a reading completion is requested THEN the system SHALL first send an authorization request via LearningHours_SendEvent GraphQL mutation with userActionType MOUSE_MOVEMENT
+2. WHEN the authorization request succeeds THEN the system SHALL send a POST request to endpoint `https://www.coursera.org/api/onDemandSupplementCompletions.v1`
+3. WHEN constructing the completion payload THEN the system SHALL include userId, courseId, and itemId
+4. WHEN the completion request succeeds THEN the system SHALL receive a 201 Created status and update the user's progress
+5. WHEN any request fails THEN the system SHALL log the error and continue with the next item
 
 ### Requirement 6: Quiz Automation
 

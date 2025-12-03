@@ -1,0 +1,263 @@
+================================================================================
+COURSERA VIDEO & READING BYPASS - WORKING IMPLEMENTATION
+================================================================================
+Last Updated: December 2025
+Status: ✅ WORKING - Bypasses Coursera's anti-skip detection
+================================================================================
+
+OVERVIEW
+--------
+This document describes the working implementation that successfully bypasses
+Coursera's video and reading completion requirements. The implementation combines
+the skipera-python logic with automatic course material fetching.
+
+================================================================================
+VIDEO COMPLETION FLOW
+================================================================================
+
+STEP 1: FETCH COURSE MATERIALS
+-------------------------------
+Endpoint: GET /api/onDemandCourseMaterials.v2/
+Purpose: Get all course items (videos, readings, assignments)
+
+Query Parameters:
+- q=slug
+- slug={course-slug}
+- includes=modules,lessons,items
+- fields=onDemandCourseMaterialItems.v2(contentSummary,timeCommitment,...)
+- showLockedItems=true
+
+Response extracts:
+- courseId
+- List of items with typeName (lecture, supplement, etc.)
+- Video duration from contentSummary.definition.duration
+
+STEP 2: GET VIDEO METADATA
+---------------------------
+Endpoint: GET /api/onDemandLectureVideos.v1/{courseId}~{itemId}
+Purpose: Check if video has skip protection
+
+Query Parameters:
+- includes=video
+- fields=disableSkippingForward,startMs,endMs
+
+Response extracts:
+- disableSkippingForward (boolean) - if true, video is skip-protected
+- trackingId from linked.onDemandVideos.v1[0].id
+
+STEP 3: AUTHORIZATION REQUEST
+------------------------------
+Endpoint: POST /graphql-gateway?opname=LearningHours_SendEvent
+Purpose: Authorize video watching activity
+
+Payload:
+{
+  "operationName": "LearningHours_SendEvent",
+  "variables": {
+    "input": {
+      "heartbeat": {
+        "courseId": "{courseId}",
+        "eventPlatform": "WEB",
+        "userActionType": "VIDEO_IS_PLAYING",
+        "durationMilliSeconds": {videoDuration},
+        "eventOs": "Microsoft Windows",
+        "clientDateTime": "{ISO timestamp}",
+        "deviceId": "{UUID}",
+        "itemDetails": {
+          "itemId": "{itemId}",
+          "learnerActivityType": "LECTURE"
+        },
+        "courseBranchId": "branch~{courseId}"
+      }
+    }
+  },
+  "query": "mutation LearningHours_SendEvent..."
+}
+
+Expected Response: 200 OK
+
+STEP 4: CONDITIONAL LOGIC (Skip-Protected Videos Only)
+-------------------------------------------------------
+IF disableSkippingForward = true (video is skip-protected):
+
+  4A. START VIDEO PLAYBACK
+  -------------------------
+  Endpoint: POST /api/opencourse.v1/user/{userId}/course/{slug}/item/{itemId}/lecture/videoEvents/play
+  Query: ?autoEnroll=false
+  Payload: {"contentRequestBody":{}}
+  
+  4B. UPDATE PROGRESS TO FULL DURATION
+  -------------------------------------
+  Endpoint: PUT /api/onDemandVideoProgresses.v1/{userId}~{courseId}~{trackingId}
+  Payload:
+  {
+    "videoProgressId": "{userId}~{courseId}~{trackingId}",
+    "viewedUpTo": {videoDuration + 2000}  // Add 2 second buffer
+  }
+  
+  Expected Response: 204 No Content
+  
+  4C. WAIT 1 SECOND
+  -----------------
+  Purpose: Allow progress to register in Coursera's system
+
+ELSE (video is skippable):
+  Skip directly to Step 5
+
+STEP 5: EVENTING API (SPEED CHANGE)
+------------------------------------
+Endpoint: POST /api/rest/v1/eventing/info
+Content-Type: application/x-www-form-urlencoded;charset=UTF-8
+
+Payload (URL-encoded):
+- app=ondemand
+- clientTimestamp={timestamp}
+- clientType=web
+- clientVersion=2.1.0
+- deviceId={UUID}
+- guid={UUID}
+- key=eventingv3.click_button
+- url={current page URL}
+- userId={userId}
+- value={JSON string}:
+  {
+    "button": {
+      "name": "video_playback_rate_switcher"
+    },
+    "videoPlayer": {
+      "videoId": "{itemId}",
+      "courseId": "{courseId}",
+      "courseName": "{slug}",
+      "courseSlug": "{slug}",
+      "playbackRate": 2000,  // Extreme speed (2000x)
+      "videoDuration": {duration in seconds},
+      "videoPosition": {0 if skippable, full duration if not}
+    }
+  }
+
+Expected Response: 200 OK
+
+STEP 6: END VIDEO
+-----------------
+Endpoint: POST /api/opencourse.v1/user/{userId}/course/{slug}/item/{itemId}/lecture/videoEvents/ended
+Query: ?autoEnroll=false
+Payload: {"contentRequestBody":{}}
+
+Expected Response: 200 OK
+Result: Video marked as complete
+
+================================================================================
+READING COMPLETION FLOW
+================================================================================
+
+STEP 1: AUTHORIZATION REQUEST
+------------------------------
+Endpoint: POST /graphql-gateway?opname=LearningHours_SendEvent
+Purpose: Authorize reading activity
+
+Payload:
+{
+  "operationName": "LearningHours_SendEvent",
+  "variables": {
+    "input": {
+      "heartbeat": {
+        "courseId": "{courseId}",
+        "eventPlatform": "WEB",
+        "userActionType": "MOUSE_MOVEMENT",  // Different from video
+        "durationMilliSeconds": 30000,
+        "eventOs": "Microsoft Windows",
+        "clientDateTime": "{ISO timestamp}",
+        "deviceId": "{UUID}",
+        "itemDetails": {
+          "itemId": "{itemId}",
+          "learnerActivityType": "READING"  // Different from video
+        },
+        "courseBranchId": "branch~{courseId}"
+      }
+    }
+  },
+  "query": "mutation LearningHours_SendEvent..."
+}
+
+Expected Response: 200 OK
+
+STEP 2: MARK READING COMPLETE
+------------------------------
+Endpoint: POST /api/onDemandSupplementCompletions.v1
+
+Payload:
+{
+  "userId": {userId as number},
+  "courseId": "{courseId}",
+  "itemId": "{itemId}"
+}
+
+Expected Response: 201 Created
+Result: Reading marked as complete
+
+================================================================================
+KEY DIFFERENCES FROM OLD IMPLEMENTATION
+================================================================================
+
+OLD (BROKEN):
+- Direct skip to end without checking skip protection
+- No progress simulation for skip-protected videos
+- Missing metadata check
+- Wrong request order
+
+NEW (WORKING):
+✅ Checks disableSkippingForward flag
+✅ Simulates watching for skip-protected videos (play → progress → end)
+✅ Direct skip for skippable videos
+✅ Correct request order: metadata → auth → info → end
+✅ Proper progress tracking with viewedUpTo
+✅ 1 second wait for progress to register
+
+================================================================================
+IMPLEMENTATION NOTES
+================================================================================
+
+1. AUTOMATIC DETECTION
+   - Fetches all course materials automatically
+   - No manual input needed for video IDs
+   - Processes all videos and readings in parallel
+
+2. SKIP PROTECTION HANDLING
+   - Automatically detects skip-protected videos
+   - Uses play + progress method for protected videos
+   - Uses direct skip for unprotected videos
+
+3. ERROR HANDLING
+   - Logs all request statuses
+   - Continues processing if individual items fail
+   - Shows summary of completed items
+
+4. TIMING
+   - 1 second wait after progress update (skip-protected only)
+   - No artificial delays for skippable videos
+   - Parallel processing of multiple items
+
+5. AUTHENTICATION
+   - Uses existing session cookies (CAUTH, CSRF3-Token)
+   - Generates unique deviceId per video
+   - Includes proper headers for all requests
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+ERROR: "Video completion validation failed"
+CAUSE: Video is skip-protected but progress not updated
+FIX: Ensure Step 4 (play + progress) is executed for skip-protected videos
+
+ERROR: "Not Authorized"
+CAUSE: Missing or invalid authorization request
+FIX: Ensure Step 3 (LearningHours_SendEvent) completes successfully
+
+ERROR: 400 on ended request
+CAUSE: Requests sent out of order
+FIX: Ensure proper await on all requests (auth → info → end)
+
+================================================================================
+END OF DOCUMENT
+================================================================================

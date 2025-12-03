@@ -1584,12 +1584,23 @@ progress::-webkit-progress-value {
                 const itemId = item.id;
 
                 try {
-                    // Bypass Video (lecture) - requires authorization request first
+                    // Bypass Video (lecture) - SKIPERA METHOD: Check skip flag → Play/Progress → End
                     if (type === "lecture") {
                         // Get video duration from contentSummary
                         const videoDuration = item.contentSummary?.definition?.duration || 30000;
+                        const deviceId = crypto.randomUUID();
 
-                        // Step 1: Send LearningHours event to authorize (simulate watching full video)
+                        // Step 1: Get video metadata to check if skippable
+                        const metadataUrl = `https://www.coursera.org/api/onDemandLectureVideos.v1/${courseId}~${itemId}?includes=video&fields=disableSkippingForward,startMs,endMs`;
+                        const metadataResponse = await fetch(metadataUrl);
+                        const metadata = await metadataResponse.json();
+                        
+                        const canSkip = !metadata.elements?.[0]?.disableSkippingForward;
+                        const trackingId = metadata.linked?.["onDemandVideos.v1"]?.[0]?.id;
+
+                        console.log(`Video ${itemId}: canSkip=${canSkip}, trackingId=${trackingId}`);
+
+                        // Step 2: Send LearningHours event to authorize (simulate watching video)
                         const authPayload = [{
                             operationName: "LearningHours_SendEvent",
                             variables: {
@@ -1601,7 +1612,7 @@ progress::-webkit-progress-value {
                                         durationMilliSeconds: videoDuration,
                                         eventOs: "Microsoft Windows",
                                         clientDateTime: new Date().toISOString(),
-                                        deviceId: crypto.randomUUID(),
+                                        deviceId: deviceId,
                                         itemDetails: {
                                             itemId: itemId,
                                             learnerActivityType: "LECTURE"
@@ -1613,7 +1624,7 @@ progress::-webkit-progress-value {
                             query: "mutation LearningHours_SendEvent($input: LearningHours_SendEventInput!) {\n  LearningHours_SendEvent(input: $input) {\n    ... on LearningHours_SendEventSuccess {\n      id\n      __typename\n    }\n    ... on LearningHours_SendEventError {\n      message\n      __typename\n    }\n    __typename\n  }\n}\n"
                         }];
 
-                        await fetch("https://www.coursera.org/graphql-gateway?opname=LearningHours_SendEvent", {
+                        const authResponse = await fetch("https://www.coursera.org/graphql-gateway?opname=LearningHours_SendEvent", {
                             method: "POST",
                             headers: {
                                 "Content-Type": "application/json",
@@ -1622,7 +1633,75 @@ progress::-webkit-progress-value {
                             body: JSON.stringify(authPayload)
                         });
 
-                        // Step 2: Mark video as ended
+                        console.log(`Auth request for ${itemId}: ${authResponse.status}`);
+
+                        // Step 3: If NOT skippable, need to play video and update progress
+                        if (!canSkip && trackingId) {
+                            // Start playing the video
+                            const playUrl = `https://www.coursera.org/api/opencourse.v1/user/${userId}/course/${slug}/item/${itemId}/lecture/videoEvents/play?autoEnroll=false`;
+                            await fetch(playUrl, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ contentRequestBody: {} })
+                            });
+
+                            console.log(`Play request for ${itemId}: started`);
+
+                            // Update progress to full duration (simulate watching entire video)
+                            const progressUrl = `https://www.coursera.org/api/onDemandVideoProgresses.v1/${userId}~${courseId}~${trackingId}`;
+                            const progressResponse = await fetch(progressUrl, {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                    videoProgressId: `${userId}~${courseId}~${trackingId}`,
+                                    viewedUpTo: videoDuration + 2000 // Add 2 seconds buffer
+                                })
+                            });
+
+                            console.log(`Progress update for ${itemId}: ${progressResponse.status}`);
+
+                            // Wait 1 second for progress to register
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        }
+
+                        // Step 4: Send Eventing API request to speed up video (2000x playback rate)
+                        const eventingPayload = new URLSearchParams({
+                            app: "ondemand",
+                            clientTimestamp: Date.now().toString(),
+                            clientType: "web",
+                            clientVersion: "2.1.0",
+                            deviceId: deviceId,
+                            guid: crypto.randomUUID(),
+                            key: "eventingv3.click_button",
+                            url: window.location.href,
+                            userId: userId,
+                            value: JSON.stringify({
+                                button: {
+                                    name: "video_playback_rate_switcher"
+                                },
+                                videoPlayer: {
+                                    videoId: itemId,
+                                    courseId: courseId,
+                                    courseName: slug,
+                                    courseSlug: slug,
+                                    playbackRate: 2000,
+                                    videoDuration: Math.floor(videoDuration / 1000),
+                                    videoPosition: canSkip ? 0 : Math.floor(videoDuration / 1000) // End position if not skippable
+                                }
+                            })
+                        });
+
+                        const infoResponse = await fetch("https://www.coursera.org/api/rest/v1/eventing/info", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+                            },
+                            body: eventingPayload.toString()
+                        });
+
+                        console.log(`Info request for ${itemId}: ${infoResponse.status}`);
+
+                        // Step 5: Mark video as ended
                         const videoUrl = `https://www.coursera.org/api/opencourse.v1/user/${userId}/course/${slug}/item/${itemId}/lecture/videoEvents/ended?autoEnroll=false`;
 
                         const response = await fetch(videoUrl, {
@@ -1634,10 +1713,11 @@ progress::-webkit-progress-value {
                         });
 
                         if (response.ok) {
-                            console.log(`✓ Bypassed video: ${itemId} (${videoDuration}ms)`);
+                            console.log(`✓ Bypassed video: ${itemId} (${videoDuration}ms) - method: ${canSkip ? 'direct skip' : 'play+progress'}`);
                             return `video-${itemId}`;
                         } else {
-                            console.error(`✗ Video bypass failed (${response.status}): ${itemId}`);
+                            const errorText = await response.text();
+                            console.error(`✗ Video bypass failed (${response.status}): ${itemId}`, errorText);
                         }
                     }
 

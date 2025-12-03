@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         Coursera Tool - Complete Automation Suite
+// @name         Coursera Tool
 // @namespace    https://github.com/coursera-tool
 // @version      1.0.0
 // @description  Automate Coursera tasks: bypass videos/readings, solve quizzes with AI, auto-complete peer reviews and assignments
-// @author       Converted from Chrome Extension
+// @author       ruskicoder
 // @match        https://www.coursera.org/*
 // @icon         https://www.coursera.org/favicon.ico
 // @grant        GM_setValue
@@ -2979,8 +2979,9 @@ Provide only the document content, no meta-commentary.`;
      */
     const requestGradingByPeer = async () => {
         try {
-            // Check if on assignment submission page
-            if (!location.href.includes("assignment-submission")) {
+            // Check if on assignment/peer review submission page
+            // Valid URLs: /peer/.../submit or /assignment-submission/...
+            if (!location.href.includes("/peer/") && !location.href.includes("assignment-submission")) {
                 toast.error("Please go to the assignment submission page.");
                 return;
             }
@@ -2992,19 +2993,31 @@ Provide only the document content, no meta-commentary.`;
                 return;
             }
 
-            // Get course and item metadata from URL
-            const pathParts = window.location.pathname.split("/");
-            const courseIndex = pathParts.indexOf("learn");
-            const courseId = courseIndex !== -1 ? pathParts[courseIndex + 1] : null;
-            const itemId = pathParts[pathParts.length - 1];
-
-            if (!courseId || !itemId) {
-                toast.error("Could not extract course/item ID from URL.");
+            // Get full courseId from API (not just slug)
+            const { courseId } = await getCourseMetadata();
+            if (!courseId) {
+                toast.error("Could not extract course ID.");
                 return;
             }
 
-            // Fetch submission ID
-            const permissionUrl = `https://www.coursera.org/api/onDemandPeerAssignmentPermissions.v1/${userId}~${courseId}~${itemId}`;
+            // Extract itemId from URL
+            // URL format: /learn/[slug]/peer/[itemId]/[title]/submit
+            const pathParts = window.location.pathname.split("/");
+            const peerIndex = pathParts.indexOf("peer");
+            const itemId = peerIndex !== -1 ? pathParts[peerIndex + 1] : null;
+
+            if (!itemId) {
+                toast.error("Could not extract item ID from URL.");
+                return;
+            }
+
+            console.log(`Coursera Tool: Fetching submission for userId=${userId}, courseId=${courseId}, itemId=${itemId}`);
+
+            // Fetch submission ID with proper query parameters
+            const fields = encodeURIComponent('deleteSubmission,listSubmissions,reviewPeers,viewReviewSchema,anonymousPeerReview,onDemandPeerSubmissionProgresses.v1(latestSubmissionSummary,latestDraftSummary,latestAttemptSummary),onDemandPeerReceivedReviewProgresses.v1(evaluationIfReady,earliestCompletionTime,reviewCount,defaultReceivedReviewRequiredCount),onDemandPeerDisplayablePhaseSchedules.v1(currentPhase,phaseEnds,phaseStarts)');
+            const includes = encodeURIComponent('receivedReviewsProgress,submissionProgress,phaseSchedule');
+            const permissionUrl = `https://www.coursera.org/api/onDemandPeerAssignmentPermissions.v1/${userId}~${courseId}~${itemId}/?fields=${fields}&includes=${includes}`;
+            
             const permissionData = await fetch(permissionUrl).then(r => r.json());
 
             const submissionId = permissionData
@@ -3012,9 +3025,12 @@ Provide only the document content, no meta-commentary.`;
                 ?.latestSubmissionSummary?.computed?.id;
 
             if (!submissionId) {
-                toast.error("Could not find submission ID.");
+                console.error("Coursera Tool: Permission API response:", permissionData);
+                toast.error("Could not find submission ID. Make sure you have submitted the assignment.");
                 return;
             }
+
+            console.log(`Coursera Tool: Found submissionId=${submissionId}`);
 
             // Get CSRF token
             const csrf3Token = getCookie('CSRF3-Token');
@@ -3049,12 +3065,14 @@ Provide only the document content, no meta-commentary.`;
                 toast.success("AI grading disabled! Peer grading requested.");
                 setTimeout(() => window.location.reload(), 2000);
             } else {
+                const errorData = await response.json();
+                console.error("Coursera Tool: GraphQL error:", errorData);
                 toast.error("Failed to disable AI grading.");
             }
 
         } catch (e) {
             console.error("Request Grading Error:", e);
-            toast.error("Failed to request peer grading");
+            toast.error("Failed to request peer grading: " + e.message);
         }
     };
 

@@ -27,7 +27,7 @@
     // ==========================================
     // ENVIRONMENT CHECK
     // ==========================================
-    
+
     // Only run on Coursera domain
     if (!/coursera\.org/.test(window.location.hostname)) {
         console.log('Coursera Tool: Not on Coursera domain, exiting.');
@@ -42,13 +42,13 @@
     // If storage keeps getting cleared, you can hardcode your API key here:
     // Just replace the empty string with your API key between the quotes
     const HARDCODED_API_KEY = "";  // Put your API key here: "AIzaSy..."
-    
+
     console.log('Coursera Tool: Hardcoded API key:', HARDCODED_API_KEY ? `${HARDCODED_API_KEY.substring(0, 15)}... (ACTIVE)` : '(not set)');
 
     // ==========================================
     // CHROME API REPLACEMENTS
     // ==========================================
-    
+
     /**
      * Helper function to parse cookies from document.cookie
      * Replaces chrome.cookies.get() functionality
@@ -86,7 +86,7 @@
                 if (typeof GM_setValue === 'function') {
                     GM_setValue(key, value);
                     console.log(`Coursera Tool: ✓ Saved ${key} to Tampermonkey storage`);
-                    
+
                     // Verify immediately
                     const verify = GM_getValue(key);
                     if (verify === value) {
@@ -105,7 +105,7 @@
                 return false;
             }
         },
-        
+
         get: (key, defaultValue = undefined) => {
             try {
                 // Special handling for API key - check hardcoded value first
@@ -113,16 +113,16 @@
                     console.log(`Coursera Tool: ✓ Using HARDCODED API key: ${HARDCODED_API_KEY.substring(0, 15)}...`);
                     return HARDCODED_API_KEY;
                 }
-                
+
                 if (typeof GM_getValue === 'function') {
                     const value = GM_getValue(key, defaultValue);
-                    
+
                     // If no value in storage and it's the API key, use hardcoded
                     if (!value && key === 'geminiAPI' && HARDCODED_API_KEY) {
                         console.log(`Coursera Tool: ✓ Falling back to HARDCODED API key`);
                         return HARDCODED_API_KEY;
                     }
-                    
+
                     if (value) {
                         console.log(`Coursera Tool: ✓ Loaded ${key} from Tampermonkey:`, typeof value === 'string' && value.length > 30 ? `${value.substring(0, 30)}...` : value);
                     }
@@ -146,7 +146,7 @@
                 return defaultValue;
             }
         },
-        
+
         delete: (key) => {
             try {
                 if (typeof GM_deleteValue === 'function') {
@@ -162,7 +162,7 @@
                 return false;
             }
         },
-        
+
         // Debug function to list all stored keys
         listAll: () => {
             if (typeof GM_listValues === 'function') {
@@ -183,7 +183,7 @@
         local: {
             get: (keys, callback) => {
                 const result = {};
-                
+
                 // Handle different input types
                 if (typeof keys === 'string') {
                     const value = isolatedStorage.get(keys);
@@ -204,9 +204,9 @@
                         result[key] = value !== undefined ? value : keys[key];
                     });
                 }
-                
+
                 console.log('Coursera Tool: Storage GET -', keys, '→', result);
-                
+
                 // Support both callback and promise patterns
                 if (callback) {
                     callback(result);
@@ -217,11 +217,11 @@
             },
             set: (items, callback) => {
                 console.log('Coursera Tool: Storage SET -', items);
-                
+
                 Object.entries(items).forEach(([key, value]) => {
                     isolatedStorage.set(key, value);
                 });
-                
+
                 if (callback) {
                     callback();
                     return undefined;
@@ -234,7 +234,7 @@
                 keyArray.forEach(key => {
                     isolatedStorage.delete(key);
                 });
-                
+
                 if (callback) {
                     callback();
                     return undefined;
@@ -246,7 +246,7 @@
                 // GM doesn't provide a way to list all keys
                 // This is a limitation, but rarely used in practice
                 console.warn('chrome.storage.local.clear() not fully supported in userscript');
-                
+
                 if (callback) {
                     callback();
                     return undefined;
@@ -272,7 +272,7 @@
         sendMessage: (message, callback) => {
             // Handle different message types that were in service worker
             const response = { success: false };
-            
+
             if (message.action === 'openTab' && message.url) {
                 GM_openInTab(message.url, { active: true, insert: true, setParent: true });
                 response.success = true;
@@ -288,7 +288,7 @@
                 response.status = 'ok';
                 response.success = true;
             }
-            
+
             // Support both callback and promise patterns
             if (callback) {
                 callback(response);
@@ -319,7 +319,7 @@
     const chromeCookiesShim = {
         get: (details, callback) => {
             const cookieValue = getCookie(details.name);
-            const result = cookieValue ? { 
+            const result = cookieValue ? {
                 name: details.name,
                 value: cookieValue,
                 domain: details.url ? new URL(details.url).hostname : window.location.hostname,
@@ -328,7 +328,7 @@
                 httpOnly: false,
                 sameSite: 'no_restriction'
             } : null;
-            
+
             // Support both callback and promise patterns
             if (callback) {
                 callback(result);
@@ -348,7 +348,7 @@
                 httpOnly: false,
                 sameSite: 'no_restriction'
             }));
-            
+
             if (callback) {
                 callback(result);
                 return undefined;
@@ -365,18 +365,18 @@
     const chromeTabsShim = {
         create: (createProperties, callback) => {
             const active = createProperties.active !== false;
-            GM_openInTab(createProperties.url, { 
-                active: active, 
-                insert: true, 
-                setParent: true 
+            GM_openInTab(createProperties.url, {
+                active: active,
+                insert: true,
+                setParent: true
             });
-            
+
             const fakeTab = {
                 id: Date.now(),
                 url: createProperties.url,
                 active: active
             };
-            
+
             if (callback) {
                 callback(fakeTab);
             }
@@ -390,7 +390,7 @@
             addListener: (callback) => {
                 // Monitor URL changes for CSRF token collection
                 let lastUrl = window.location.href;
-                
+
                 const checkUrlChange = () => {
                     if (window.location.href !== lastUrl) {
                         lastUrl = window.location.href;
@@ -400,10 +400,10 @@
                         callback(Date.now(), { url: lastUrl }, { url: lastUrl });
                     }
                 };
-                
+
                 // Check for URL changes (for SPA navigation)
                 setInterval(checkUrlChange, 1000);
-                
+
                 // Also listen to popstate for back/forward navigation
                 window.addEventListener('popstate', checkUrlChange);
             }
@@ -421,7 +421,7 @@
             isolatedStorage.set('csrf3Token', csrf3Token);
             console.log('Coursera Tool: CSRF3-Token saved');
         }
-        
+
         // Collect CAUTH token
         const cauth = getCookie('CAUTH');
         if (cauth) {
@@ -434,7 +434,7 @@
     if (typeof window.chrome === 'undefined') {
         window.chrome = {};
     }
-    
+
     window.chrome.storage = chromeStorageShim;
     window.chrome.runtime = chromeRuntimeShim;
     window.chrome.cookies = chromeCookiesShim;
@@ -451,7 +451,7 @@
         // Check if this is a cross-origin request
         const urlObj = new URL(url, window.location.href);
         const isCrossOrigin = urlObj.origin !== window.location.origin;
-        
+
         // For same-origin requests, use ORIGINAL native fetch with credentials
         if (!isCrossOrigin) {
             // Ensure credentials are included for same-origin requests
@@ -462,7 +462,7 @@
             console.log(`Coursera Tool: Using native fetch for same-origin: ${url}`);
             return originalFetch(url, optionsWithCredentials);
         }
-        
+
         // For cross-origin requests, use GM_xmlhttpRequest
         return new Promise((resolve, reject) => {
             GM_xmlhttpRequest({
@@ -482,7 +482,7 @@
                             }
                         });
                     }
-                    
+
                     // Create a fetch-like response object
                     const fetchResponse = {
                         ok: response.status >= 200 && response.status < 300,
@@ -509,18 +509,18 @@
 
     // Replace global fetch with CORS-capable version
     window.fetch = fetchWithCORS;
-    
+
     // Store original fetch for direct access if needed
     window.fetch.original = originalFetch;
 
     // ==========================================
     // REACT & TOAST SETUP
     // ==========================================
-    
+
     // Access React from global scope (loaded via @require)
     const React = window.React;
     const ReactDOM = window.ReactDOM;
-    
+
     // Try multiple ways to access react-hot-toast
     let toast, Toaster;
     if (window.toast) {
@@ -562,7 +562,7 @@
     // ==========================================
     // INJECT STYLES (Task 3.4)
     // ==========================================
-    
+
     /**
      * Inject all CSS styles from the extension
      * Includes Tailwind utilities, animations, and toast styles
@@ -683,18 +683,18 @@ progress::-webkit-progress-value {
   font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji";
 }
 `;
-        
+
         GM_addStyle(styles);
         console.log('Coursera Tool: ✓ Styles injected (Task 3.4)');
     };
-    
+
     // Inject styles immediately
     injectStyles();
 
     // ==========================================
     // CONSTANTS & CONFIGURATION
     // ==========================================
-    
+
     const CONSTANTS = {
         METADATA_URL: "https://pear104.github.io/coursera-tool/gh-pages/metadata.json",
         COURSE_MAP_URL: "https://pear104.github.io/coursera-tool/gh-pages/courseMap.json",
@@ -1114,7 +1114,7 @@ progress::-webkit-progress-value {
     // ==========================================
     // CORE UTILITY FUNCTIONS
     // ==========================================
-    
+
     /**
      * Wait utility - delays execution
      */
@@ -1127,7 +1127,7 @@ progress::-webkit-progress-value {
     const autoSubmitWithAgreement = async (delay = 4000) => {
         try {
             console.log('Coursera Tool: Starting auto-submit sequence...');
-            
+
             // Step 1: Find and click the agreement checkbox
             const checkboxSelectors = [
                 'input[id="agreement-checkbox-base"]',
@@ -1135,7 +1135,7 @@ progress::-webkit-progress-value {
                 '[data-testid="agreement-checkbox"] input[type="checkbox"]',
                 '[data-testid="agreement-standalone-checkbox"] input[type="checkbox"]'
             ];
-            
+
             let checkbox = null;
             for (const selector of checkboxSelectors) {
                 checkbox = document.querySelector(selector);
@@ -1144,12 +1144,12 @@ progress::-webkit-progress-value {
                     break;
                 }
             }
-            
+
             if (checkbox && !checkbox.checked) {
                 console.log('Coursera Tool: Clicking agreement checkbox...');
                 checkbox.click();
                 console.log('Coursera Tool: ✓ Checkbox clicked');
-                
+
                 // Wait for the submit button to become enabled
                 console.log(`Coursera Tool: Waiting ${delay}ms for submit button to enable...`);
                 await wait(delay);
@@ -1160,7 +1160,7 @@ progress::-webkit-progress-value {
                 console.log('Coursera Tool: No agreement checkbox found, proceeding to submit...');
                 await wait(1000);
             }
-            
+
             // Step 2: Find and click the submit button
             const submitSelectors = [
                 'button[data-testid="submit-button"]',
@@ -1168,7 +1168,7 @@ progress::-webkit-progress-value {
                 'button[aria-label="Submit"]',
                 'button.cds-button-primary:has-text("Submit")'
             ];
-            
+
             let submitBtn = null;
             for (const selector of submitSelectors) {
                 submitBtn = document.querySelector(selector);
@@ -1177,7 +1177,7 @@ progress::-webkit-progress-value {
                     break;
                 }
             }
-            
+
             if (submitBtn) {
                 // Check if button is disabled
                 const isDisabled = submitBtn.disabled || submitBtn.getAttribute('aria-disabled') === 'true';
@@ -1185,7 +1185,7 @@ progress::-webkit-progress-value {
                     console.warn('Coursera Tool: Submit button is still disabled, waiting longer...');
                     await wait(2000);
                 }
-                
+
                 console.log('Coursera Tool: Clicking submit button...');
                 submitBtn.click();
                 console.log('Coursera Tool: ✓ Submit button clicked');
@@ -1234,7 +1234,7 @@ progress::-webkit-progress-value {
     const autoSubmitQuiz = async () => {
         try {
             console.log('Coursera Tool: Starting auto-submit process...');
-            
+
             // Step 1: Find and click the agreement checkbox
             const checkboxSelectors = [
                 'input[id="agreement-checkbox-base"]',
@@ -1243,7 +1243,7 @@ progress::-webkit-progress-value {
                 '[data-testid="agreement-standalone-checkbox"] input[type="checkbox"]',
                 '.honor-code-agreement input[type="checkbox"]'
             ];
-            
+
             let checkbox = null;
             for (const selector of checkboxSelectors) {
                 checkbox = document.querySelector(selector);
@@ -1252,7 +1252,7 @@ progress::-webkit-progress-value {
                     break;
                 }
             }
-            
+
             if (checkbox && !checkbox.checked) {
                 console.log('Coursera Tool: Clicking agreement checkbox...');
                 checkbox.click();
@@ -1263,12 +1263,12 @@ progress::-webkit-progress-value {
             } else {
                 console.warn('Coursera Tool: Agreement checkbox not found');
             }
-            
+
             // Step 2: Wait 3-5 seconds for submit button to enable
             const waitTime = 4000; // 4 seconds (middle of 3-5 range)
             console.log(`Coursera Tool: Waiting ${waitTime}ms for submit button to enable...`);
             await wait(waitTime);
-            
+
             // Step 3: Find and click first submit button
             const submitSelectors = [
                 'button[data-testid="submit-button"]',
@@ -1277,7 +1277,7 @@ progress::-webkit-progress-value {
                 'button.cds-button-primary:has(.cds-button-label)',
                 'button:contains("Submit")'
             ];
-            
+
             let submitBtn1 = null;
             for (const selector of submitSelectors) {
                 submitBtn1 = document.querySelector(selector);
@@ -1286,7 +1286,7 @@ progress::-webkit-progress-value {
                     break;
                 }
             }
-            
+
             if (submitBtn1) {
                 // Check if button is disabled
                 const isDisabled = submitBtn1.disabled || submitBtn1.getAttribute('aria-disabled') === 'true';
@@ -1294,7 +1294,7 @@ progress::-webkit-progress-value {
                     console.warn('Coursera Tool: Submit button is still disabled, waiting longer...');
                     await wait(2000); // Wait another 2 seconds
                 }
-                
+
                 console.log('Coursera Tool: Clicking first submit button...');
                 submitBtn1.click();
                 console.log('Coursera Tool: ✓ First submit button clicked');
@@ -1304,11 +1304,11 @@ progress::-webkit-progress-value {
                 toast.error('Submit button not found');
                 return;
             }
-            
+
             // Step 4: Wait 1 second for confirmation dialog to appear
             console.log('Coursera Tool: Waiting 1s for confirmation dialog...');
             await wait(1000);
-            
+
             // Step 5: Find and click second submit button in dialog
             const dialogSubmitSelectors = [
                 'button[data-testid="dialog-submit-button"]',
@@ -1318,7 +1318,7 @@ progress::-webkit-progress-value {
                 '.cds-modal button.cds-button-primary',
                 'div[role="dialog"] button:contains("Submit")'
             ];
-            
+
             let submitBtn2 = null;
             for (const selector of dialogSubmitSelectors) {
                 submitBtn2 = document.querySelector(selector);
@@ -1327,7 +1327,7 @@ progress::-webkit-progress-value {
                     break;
                 }
             }
-            
+
             if (submitBtn2) {
                 console.log('Coursera Tool: Clicking dialog submit button...');
                 submitBtn2.click();
@@ -1337,7 +1337,7 @@ progress::-webkit-progress-value {
                 console.warn('Coursera Tool: Dialog submit button not found - quiz may already be submitted');
                 toast.success('Quiz submitted!');
             }
-            
+
         } catch (error) {
             console.error('Coursera Tool: Auto-submit error:', error);
             toast.error('Auto-submit failed: ' + error.message);
@@ -1379,7 +1379,7 @@ progress::-webkit-progress-value {
     // ==========================================
     // API & DATA HANDLING FUNCTIONS
     // ==========================================
-    
+
     /**
      * Get authentication details and perform telemetry
      * This is optional telemetry - failures are non-fatal
@@ -1387,20 +1387,20 @@ progress::-webkit-progress-value {
     const getAuthDetails = async (refresh = true) => {
         try {
             const metadataReq = await fetch(CONSTANTS.METADATA_URL);
-            
+
             // Check if response is valid JSON
             const contentType = metadataReq.headers.get('content-type');
             if (!contentType || !contentType.includes('application/json')) {
                 console.warn('Coursera Tool: Metadata endpoint returned non-JSON response, skipping telemetry');
                 return false;
             }
-            
+
             const metadata = await metadataReq.json();
-            
+
             // Log user details (Telemetry from original extension)
             const storage = await chrome.storage.local.get(["CAUTH", "profileconsent", "email"]);
             const logEndpoint = metadata.logs + "log";
-            
+
             // Verify user against remote list or log usage
             await fetch(logEndpoint, {
                 method: "POST",
@@ -1434,15 +1434,15 @@ progress::-webkit-progress-value {
         // Extract Slug from URL
         // URL Format: coursera.org/learn/[slug]/... or coursera.org/programs/[program]/courses/[slug]/...
         const pathParts = window.location.pathname.split("/").filter(p => p); // Remove empty parts
-        
+
         let slug = null;
-        
+
         // Find "learn" in the path and get the next part
         const learnIndex = pathParts.indexOf("learn");
         if (learnIndex !== -1 && learnIndex + 1 < pathParts.length) {
             slug = pathParts[learnIndex + 1];
         }
-        
+
         // Fallback: try to find "courses" in the path
         if (!slug) {
             const coursesIndex = pathParts.indexOf("courses");
@@ -1450,36 +1450,35 @@ progress::-webkit-progress-value {
                 slug = pathParts[coursesIndex + 1];
             }
         }
-        
+
         if (!slug) {
             throw new Error('Could not extract course slug from URL. Please navigate to a course page.');
         }
-        
+
         console.log(`Coursera Tool: Extracted course slug: ${slug}`);
 
         // Fetch Course Materials API
         const url = `https://www.coursera.org/api/onDemandCourseMaterials.v2/?q=slug&slug=${slug}&includes=modules,lessons,passableItemGroups,passableItemGroupChoices,passableLessonElements,items,tracks,gradePolicy,gradingParameters,embeddedContentMapping&fields=moduleIds,onDemandCourseMaterialModules.v1(name,slug,description,timeCommitment,lessonIds,optional,learningObjectives),onDemandCourseMaterialLessons.v1(name,slug,timeCommitment,elementIds,optional,trackId),onDemandCourseMaterialPassableItemGroups.v1(requiredPassedCount,passableItemGroupChoiceIds,trackId),onDemandCourseMaterialPassableItemGroupChoices.v1(name,description,itemIds),onDemandCourseMaterialPassableLessonElements.v1(gradingWeight,isRequiredForPassing),onDemandCourseMaterialItems.v2(name,originalName,slug,timeCommitment,contentSummary,isLocked,lockableByItem,itemLockedReasonCode,trackId,lockedStatus,itemLockSummary),onDemandCourseMaterialTracks.v1(passablesCount),onDemandGradingParameters.v1(gradedAssignmentGroups),contentAtomRelations.v1(embeddedContentSourceCourseId,subContainerId)&showLockedItems=true`;
-        
+
         console.log(`Coursera Tool: Fetching course materials from API...`);
         const response = await fetch(url).then(r => r.json());
-        
+
         // Check if response is valid
-        if (!response || !response.linked || !response.linked["onDemandCourseMaterialModules.v1"]) {
+        if (!response || !response.elements || response.elements.length === 0) {
             console.error('Coursera Tool: Invalid API response:', response);
             throw new Error('Failed to fetch course materials. The API response was invalid.');
         }
-        
-        // The Course ID is in the module ID (format: courseId~moduleId)
-        const moduleId = response.linked["onDemandCourseMaterialModules.v1"][0].id;
-        const courseId = moduleId.split('~')[0]; // Extract just the course ID part
-        
-        console.log(`Coursera Tool: Module ID: ${moduleId}, Course ID: ${courseId}`);
-        
+
+        // The Course ID is in elements[0].id
+        const courseId = response.elements[0].id;
+
+        console.log(`Coursera Tool: Course ID: ${courseId}`);
+
         // Extract items from the linked section - this contains the actual content with contentSummary
         const items = response.linked["onDemandCourseMaterialItems.v2"] || [];
-        
+
         console.log(`Coursera Tool: Found ${items.length} items in course materials`);
-        
+
         return {
             materials: items,
             courseId: courseId,
@@ -1508,16 +1507,16 @@ progress::-webkit-progress-value {
     // ==========================================
     // CRYPTO FUNCTIONS (JWT & AES)
     // ==========================================
-    
+
     /**
      * Generate HS256 JWT using Web Crypto API
      */
     const generateAuthToken = async (payload) => {
         const SECRET_KEY = "d9e0c5f21a4b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d";
-        
+
         const header = { alg: "HS256", typ: "JWT" };
         const now = Math.floor(Date.now() / 1000);
-        
+
         // Add standard claims if not present
         const claims = {
             ...payload,
@@ -1555,7 +1554,7 @@ progress::-webkit-progress-value {
     // ==========================================
     // CORE AUTOMATION FEATURES
     // ==========================================
-    
+
     /**
      * Bypass course content (videos and readings)
      * Automatically marks videos and readings as complete
@@ -1575,39 +1574,140 @@ progress::-webkit-progress-value {
             setLoadingStatus(prev => ({...prev, isLoadingCompleteWeek: true}));
 
             console.log(`Coursera Tool: Processing ${materials.length} course materials...`);
-            
+
             const promises = materials.map(async (item) => {
                 if (!item || !item.contentSummary || !item.contentSummary.typeName) {
                     return null;
                 }
-                
+
                 const type = item.contentSummary.typeName;
                 const itemId = item.id;
 
                 try {
-                    // Bypass Video (lecture) - using onDemandLectureVideoEvents API
+                    // Bypass Video (lecture) - requires authorization request first
                     if (type === "lecture") {
-                        const videoUrl = `https://www.coursera.org/api/onDemandLectureVideoEvents.v1/${userId}~${courseId}~${itemId}/lecture/videoEvents/ended?autoEnroll=false`;
-                        
+                        // Get video duration from contentSummary
+                        const videoDuration = item.contentSummary?.definition?.duration || 30000;
+
+                        // Step 1: Send LearningHours event to authorize (simulate watching full video)
+                        const authPayload = [{
+                            operationName: "LearningHours_SendEvent",
+                            variables: {
+                                input: {
+                                    heartbeat: {
+                                        courseId: courseId,
+                                        eventPlatform: "WEB",
+                                        userActionType: "VIDEO_IS_PLAYING",
+                                        durationMilliSeconds: videoDuration,
+                                        eventOs: "Microsoft Windows",
+                                        clientDateTime: new Date().toISOString(),
+                                        deviceId: crypto.randomUUID(),
+                                        itemDetails: {
+                                            itemId: itemId,
+                                            learnerActivityType: "LECTURE"
+                                        },
+                                        courseBranchId: `branch~${courseId}`
+                                    }
+                                }
+                            },
+                            query: "mutation LearningHours_SendEvent($input: LearningHours_SendEventInput!) {\n  LearningHours_SendEvent(input: $input) {\n    ... on LearningHours_SendEventSuccess {\n      id\n      __typename\n    }\n    ... on LearningHours_SendEventError {\n      message\n      __typename\n    }\n    __typename\n  }\n}\n"
+                        }];
+
+                        await fetch("https://www.coursera.org/graphql-gateway?opname=LearningHours_SendEvent", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "operation-name": "LearningHours_SendEvent"
+                            },
+                            body: JSON.stringify(authPayload)
+                        });
+
+                        // Step 2: Mark video as ended
+                        const videoUrl = `https://www.coursera.org/api/opencourse.v1/user/${userId}/course/${slug}/item/${itemId}/lecture/videoEvents/ended?autoEnroll=false`;
+
                         const response = await fetch(videoUrl, {
                             method: "POST",
-                            headers: { "Content-Type": "application/json" },
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
                             body: JSON.stringify({ contentRequestBody: {} })
                         });
-                        
+
                         if (response.ok) {
-                            console.log(`✓ Bypassed video: ${itemId}`);
+                            console.log(`✓ Bypassed video: ${itemId} (${videoDuration}ms)`);
                             return `video-${itemId}`;
+                        } else {
+                            console.error(`✗ Video bypass failed (${response.status}): ${itemId}`);
                         }
                     }
 
-                    // Bypass Reading (supplement) - using onDemandLtiUngradedLaunches API
+                    // Bypass Reading (supplement) - requires authorization request first
                     else if (type === "supplement") {
-                        const readingUrl = "https://www.coursera.org/api/onDemandLtiUngradedLaunches.v1/?fields=endpointUrl%2CauthRequestUrl%2CsignedProperties";
-                        
+                        // Step 1: Send LearningHours event to authorize (simulate reading)
+                        const authPayload = [{
+                            operationName: "LearningHours_SendEvent",
+                            variables: {
+                                input: {
+                                    heartbeat: {
+                                        courseId: courseId,
+                                        eventPlatform: "WEB",
+                                        userActionType: "MOUSE_MOVEMENT",
+                                        durationMilliSeconds: 30000,
+                                        eventOs: "Microsoft Windows",
+                                        clientDateTime: new Date().toISOString(),
+                                        deviceId: crypto.randomUUID(),
+                                        itemDetails: {
+                                            itemId: itemId,
+                                            learnerActivityType: "READING"
+                                        },
+                                        courseBranchId: `branch~${courseId}`
+                                    }
+                                }
+                            },
+                            query: "mutation LearningHours_SendEvent($input: LearningHours_SendEventInput!) {\n  LearningHours_SendEvent(input: $input) {\n    ... on LearningHours_SendEventSuccess {\n      id\n      __typename\n    }\n    ... on LearningHours_SendEventError {\n      message\n      __typename\n    }\n    __typename\n  }\n}\n"
+                        }];
+
+                        await fetch("https://www.coursera.org/graphql-gateway?opname=LearningHours_SendEvent", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "operation-name": "LearningHours_SendEvent"
+                            },
+                            body: JSON.stringify(authPayload)
+                        });
+
+                        // Step 2: Mark reading as complete
+                        const readingUrl = "https://www.coursera.org/api/onDemandSupplementCompletions.v1";
+
                         const response = await fetch(readingUrl, {
                             method: "POST",
-                            headers: { "Content-Type": "application/json" },
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                userId: Number(userId),
+                                courseId: courseId,
+                                itemId: itemId
+                            })
+                        });
+
+                        if (response.ok) {
+                            console.log(`✓ Bypassed reading: ${itemId}`);
+                            return `reading-${itemId}`;
+                        } else {
+                            console.error(`✗ Reading bypass failed (${response.status}): ${itemId}`);
+                        }
+                    }
+
+                    // Bypass Ungraded LTI Plugins (ungradedLti)
+                    else if (type === "ungradedLti") {
+                        const ltiUrl = "https://www.coursera.org/api/onDemandLtiUngradedLaunches.v1/?fields=endpointUrl%2CauthRequestUrl%2CsignedProperties";
+
+                        const response = await fetch(ltiUrl, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
                             body: JSON.stringify({
                                 courseId: courseId,
                                 itemId: itemId,
@@ -1615,13 +1715,15 @@ progress::-webkit-progress-value {
                                 markItemCompleted: true
                             })
                         });
-                        
+
                         if (response.ok) {
-                            console.log(`✓ Bypassed reading: ${itemId}`);
-                            return `reading-${itemId}`;
+                            console.log(`✓ Bypassed ungraded LTI: ${itemId}`);
+                            return `lti-${itemId}`;
+                        } else {
+                            console.error(`✗ LTI bypass failed (${response.status}): ${itemId}`);
                         }
                     }
-                    
+
                     return null;
                 } catch (error) {
                     console.error(`✗ Error bypassing ${type} ${itemId}:`, error);
@@ -1634,11 +1736,11 @@ progress::-webkit-progress-value {
                 success: 'Processing complete!',
                 error: 'Some items failed.'
             });
-            
+
             const successful = results.filter(result => result !== null);
             const videos = successful.filter(result => result && result.startsWith('video-')).length;
             const readings = successful.filter(result => result && result.startsWith('reading-')).length;
-            
+
             if (successful.length === 0) {
                 toast.warning('No videos or readings were found to complete.');
             } else {
@@ -1646,11 +1748,11 @@ progress::-webkit-progress-value {
             }
 
             setLoadingStatus(prev => ({...prev, isLoadingCompleteWeek: false}));
-            
+
             if (successful.length > 0) {
                 setTimeout(() => window.location.reload(), 2000);
             }
-            
+
         } catch (error) {
             console.error('Coursera Tool: Bypass course content error:', error);
             toast.error(error.message || 'Failed to complete week.');
@@ -1668,7 +1770,7 @@ progress::-webkit-progress-value {
 
         // Wait for the "Accept" or "Join" button
         const joinButton = await waitForSelector("button[data-test='accept-invitation-button']", 10000).catch(() => null);
-        
+
         if (joinButton) {
             joinButton.click();
             console.log("Auto-joined course.");
@@ -1682,17 +1784,17 @@ progress::-webkit-progress-value {
      */
     const solveWithGemini = async (questions) => {
         const { geminiAPI } = await chrome.storage.local.get("geminiAPI");
-        
+
         if (!geminiAPI) {
             alert("Please configure your Gemini API Key in the settings.");
             return null;
         }
 
         const questionListJSON = JSON.stringify(questions.map(q => ({ term: q.term, definition: "" })));
-        
+
         // Prompt Engineering
-        const systemPrompt = `You are an expert tutor. I will provide a list of quiz questions in JSON format. 
-    Return a JSON array where 'term' is the question and 'definition' is the correct answer. 
+        const systemPrompt = `You are an expert tutor. I will provide a list of quiz questions in JSON format.
+    Return a JSON array where 'term' is the question and 'definition' is the correct answer.
     Output ONLY valid JSON. No explanations.`;
 
         const payload = {
@@ -1713,7 +1815,7 @@ progress::-webkit-progress-value {
 
             const data = await response.json();
             const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            
+
             if (!textResponse) return null;
 
             // Clean up markdown formatting often returned by LLMs
@@ -1734,14 +1836,14 @@ progress::-webkit-progress-value {
      */
     const handleAutoQuiz = async (setLoadingStatus) => {
         setLoadingStatus(prev => ({...prev, isLoadingQuiz: true}));
-        
+
         try {
             // Ensure we are on a quiz/exam/assignment page
-            const isQuizPage = location.pathname.includes("/exam") || 
-                              location.pathname.includes("/quiz") || 
+            const isQuizPage = location.pathname.includes("/exam") ||
+                              location.pathname.includes("/quiz") ||
                               location.pathname.includes("/assignment-submission") ||
                               location.pathname.includes("/attempt");
-            
+
             if (!isQuizPage) {
                 toast.error("Please navigate to a Quiz, Exam, or Assignment page.");
                 setLoadingStatus(prev => ({...prev, isLoadingQuiz: false}));
@@ -1758,7 +1860,7 @@ progress::-webkit-progress-value {
             } catch (e) {
                 // Try alternative selectors for different page types
                 console.log("Trying alternative selectors...");
-                
+
                 // Try common quiz/form containers
                 const alternativeSelectors = [
                     "div[data-test='question-container']",
@@ -1768,7 +1870,7 @@ progress::-webkit-progress-value {
                     "[data-test*='question']",
                     ".rc-CML" // Fallback to broad selector
                 ];
-                
+
                 for (const selector of alternativeSelectors) {
                     formParts = Array.from(document.querySelectorAll(selector));
                     if (formParts.length > 0) {
@@ -1776,14 +1878,14 @@ progress::-webkit-progress-value {
                         break;
                     }
                 }
-                
+
                 if (formParts.length === 0) {
                     toast.error("Could not find quiz questions on this page. The page structure may have changed.");
                     setLoadingStatus(prev => ({...prev, isLoadingQuiz: false}));
                     return;
                 }
             }
-            
+
             // Scrape Questions
             const questions = formParts.map(part => {
                 // Basic extraction - gets the full text of the question block
@@ -1801,32 +1903,32 @@ progress::-webkit-progress-value {
                 // Apply Answers
                 for (const part of formParts) {
                     const questionText = part.innerText.cleanup();
-                    const match = answers.find(a => 
+                    const match = answers.find(a =>
                         a.term.cleanup().includes(questionText) || questionText.includes(a.term.cleanup())
                     );
 
                     if (match && match.definition) {
                         const correctAnswer = match.definition.cleanup();
-                        
+
                         // Skip if answer is empty or too short
                         if (!correctAnswer || correctAnswer.length < 2) {
                             console.log(`⚠ Skipping question - empty or invalid answer`);
                             continue;
                         }
-                        
+
                         console.log(`Matching answer: "${correctAnswer}"`);
-                        
+
                         // Find all options in this question
                         const options = part.querySelectorAll(".rc-Option");
                         let foundMatch = false;
-                        
+
                         for (const option of options) {
                             // Get the actual answer text from the nested structure
                             const answerTextElement = option.querySelector(".rc-CML") || option.querySelector("._bc4egv") || option;
                             const optionText = answerTextElement.innerText?.cleanup() || "";
-                            
+
                             console.log(`Checking option: "${optionText}"`);
-                            
+
                             // Check if this option matches the correct answer
                             // Use more strict matching to avoid false positives
                             const isMatch = optionText.length > 2 && (
@@ -1834,7 +1936,7 @@ progress::-webkit-progress-value {
                                 (optionText.length > 5 && correctAnswer.includes(optionText)) ||
                                 correctAnswer.toLowerCase() === optionText.toLowerCase()
                             );
-                            
+
                             if (isMatch && !foundMatch) {
                                 // Find the radio/checkbox input in this option
                                 const input = option.querySelector("input[type='radio'], input[type='checkbox']");
@@ -1842,13 +1944,13 @@ progress::-webkit-progress-value {
                                     console.log(`✓ Clicking option: "${optionText}"`);
                                     input.click();
                                     foundMatch = true; // Only click one option per question
-                                    
+
                                     // Visual feedback
                                     addBadgeToLabel(option, "Gemini");
                                 }
                             }
                         }
-                        
+
                         // Handle textarea inputs
                         const textareas = part.querySelectorAll("textarea");
                         if (textareas.length > 0) {
@@ -1879,7 +1981,7 @@ progress::-webkit-progress-value {
     // ==========================================
     // QUIZ HELPER FUNCTIONS
     // ==========================================
-    
+
     /**
      * Add visual badge to options identified by the tool
      * Provides visual feedback showing which answers were auto-selected
@@ -1891,7 +1993,7 @@ progress::-webkit-progress-value {
 
         // Find the wrapper to append the badge
         const label = element.closest("label") || element;
-        
+
         // Check if badge already exists
         if (label.querySelector(`span[data-badge="${type}"]`)) {
             return;
@@ -1920,7 +2022,7 @@ progress::-webkit-progress-value {
     // ==========================================
     // ASSIGNMENT & REVIEW AUTOMATION
     // ==========================================
-    
+
     /**
      * Handle peer review automation
      * Automatically fills out peer review forms with maximum scores and positive feedback
@@ -1932,30 +2034,30 @@ progress::-webkit-progress-value {
             toast.error("This is not a peer review page.");
             return;
         }
-        
+
         setLoadingStatus(prev => ({...prev, isLoadingReview: true}));
 
         try {
             // Repeat the review process 5 times
             for (let reviewCount = 1; reviewCount <= 5; reviewCount++) {
                 toast.loading(`Processing review ${reviewCount} of 5...`);
-                
+
                 // Wait for form to load
                 await wait(1000);
-                
+
                 // Find all form parts with radio options
                 const formParts = document.querySelectorAll('.rc-FormPart');
-                
+
                 for (const formPart of formParts) {
                     // Check if this form part has radio buttons
                     const radioInputs = formPart.querySelectorAll('input[type="radio"]');
-                    
+
                     if (radioInputs.length > 0) {
                         // Select the first radio option (highest score - usually "Yes, perfect" or "5 points")
                         radioInputs[0].click();
                         await wait(200); // Small delay between selections
                     }
-                    
+
                     // Check if this form part has textarea for comments
                     const textarea = formPart.querySelector('textarea');
                     if (textarea) {
@@ -1964,31 +2066,31 @@ progress::-webkit-progress-value {
                         await wait(200);
                     }
                 }
-                
+
                 // Find and click "Submit Review" button
-                const submitBtn = Array.from(document.querySelectorAll('button')).find(btn => 
+                const submitBtn = Array.from(document.querySelectorAll('button')).find(btn =>
                     btn.innerText.includes('Submit Review')
                 );
-                
+
                 if (submitBtn) {
                     console.log(`Submitting review ${reviewCount}...`);
                     submitBtn.click();
-                    
+
                     // Wait 2-3 seconds for the new form to load
                     await wait(2500);
-                    
+
                     toast.success(`Review ${reviewCount} submitted!`);
                 } else {
                     console.log(`Submit button not found for review ${reviewCount}`);
                     toast.warning(`Could not find submit button for review ${reviewCount}`);
                     break;
                 }
-                
+
                 // Check if there are more reviews to complete
                 if (reviewCount < 5) {
                     // Wait a bit before starting next review
                     await wait(1000);
-                    
+
                     // Check if we're still on a review page
                     if (!location.pathname.includes("review")) {
                         toast.success(`Completed ${reviewCount} reviews. No more reviews available.`);
@@ -1996,7 +2098,7 @@ progress::-webkit-progress-value {
                     }
                 }
             }
-            
+
             toast.success("All peer reviews completed!");
         } catch (e) {
             console.error("Peer Review Error:", e);
@@ -2020,7 +2122,7 @@ progress::-webkit-progress-value {
 
             // Generate random content
             const randomText = generateRandomString(10);
-            
+
             // Fill ContentEditable Divs (Rich Text Editors)
             const editors = document.querySelectorAll("div[contenteditable='true']");
             editors.forEach(editor => {
@@ -2047,26 +2149,26 @@ progress::-webkit-progress-value {
                 // Create DataTransfer
                 const dataTransfer = new DataTransfer();
                 dataTransfer.items.add(file);
-                
+
                 // Handle React internal tracker
                 const reactTracker = input._valueTracker;
                 if (reactTracker) reactTracker.setValue(fileName);
-                
+
                 input.files = dataTransfer.files;
                 input.dispatchEvent(new Event('change', { bubbles: true }));
-                
+
                 // Wait for upload to process
                 await wait(3000);
             }
 
             // Wait before submit
             await wait(4000);
-            
+
             // Find and click submit button
             const submitBtn = await waitForSelector("button[data-test='submit-button']", 10000).catch(() => null);
             if (submitBtn) {
                 submitBtn.click();
-                
+
                 // Handle confirmation modal
                 await wait(1000);
                 const confirmBtn = await waitForSelector("button[data-test='confirm-submit-button']", 10000).catch(() => null);
@@ -2097,10 +2199,10 @@ progress::-webkit-progress-value {
             element.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype,
             'value'
         ).set;
-        
+
         // Use the native setter to bypass React's tracking
         nativeInputValueSetter.call(element, value);
-        
+
         // Trigger React's change detection
         const event = new Event('input', { bubbles: true });
         element.dispatchEvent(event);
@@ -2114,12 +2216,12 @@ progress::-webkit-progress-value {
      */
     const simulateTyping = async (element, text, delay = 50) => {
         element.focus();
-        
+
         // For contenteditable divs (rich text editors)
         if (element.contentEditable === 'true') {
             // Clear first
             element.innerText = '';
-            
+
             // Type character by character
             for (let i = 0; i < text.length; i++) {
                 const char = text[i];
@@ -2127,7 +2229,7 @@ progress::-webkit-progress-value {
                 element.dispatchEvent(new Event('input', { bubbles: true }));
                 await wait(delay);
             }
-            
+
             // Final events
             element.dispatchEvent(new Event('change', { bubbles: true }));
             element.blur();
@@ -2139,7 +2241,7 @@ progress::-webkit-progress-value {
                 setReactInputValue(element, partialText);
                 await wait(delay);
             }
-            
+
             // Final events
             element.dispatchEvent(new Event('change', { bubbles: true }));
             element.blur();
@@ -2175,14 +2277,14 @@ progress::-webkit-progress-value {
 
             // Step 1: Extract assignment instructions from the specific div
             let assignmentContext = "";
-            
+
             const instructionsContainer = document.querySelector('div[data-testid="peer-assignment-instructions"]');
             if (instructionsContainer) {
                 assignmentContext += "Assignment Instructions:\n" + instructionsContainer.innerText + "\n\n";
             }
 
             // Extract "Grading Criteria Overview" section
-            const gradingCriteria = Array.from(document.querySelectorAll('h3')).find(h => 
+            const gradingCriteria = Array.from(document.querySelectorAll('h3')).find(h =>
                 h.innerText.includes("Grading Criteria") || h.innerText.includes("Grading Overview")
             );
             if (gradingCriteria) {
@@ -2193,7 +2295,7 @@ progress::-webkit-progress-value {
             }
 
             // Extract "Step-By-Step Assignment Instructions" section
-            const stepByStep = Array.from(document.querySelectorAll('h3')).find(h => 
+            const stepByStep = Array.from(document.querySelectorAll('h3')).find(h =>
                 h.innerText.includes("Step-By-Step") || h.innerText.includes("Assignment Instructions")
             );
             if (stepByStep) {
@@ -2214,7 +2316,7 @@ progress::-webkit-progress-value {
             console.log("Assignment Context Extracted:", assignmentContext.substring(0, 500) + "...");
 
             // Step 2: Click "My Submission" tab
-            const mySubmissionTab = Array.from(document.querySelectorAll('button[role="tab"]')).find(btn => 
+            const mySubmissionTab = Array.from(document.querySelectorAll('button[role="tab"]')).find(btn =>
                 btn.innerText.includes("My submission") || btn.innerText.includes("My Submission")
             );
             if (mySubmissionTab && mySubmissionTab.getAttribute('aria-selected') !== 'true') {
@@ -2227,20 +2329,20 @@ progress::-webkit-progress-value {
 
             // Step 4: Extract form fields and their prompts
             const formFields = [];
-            
+
             // Find all submission parts (prompts)
             const submissionParts = document.querySelectorAll('.rc-SubmissionPartEditView');
-            
+
             for (const part of submissionParts) {
                 // Extract the prompt/question text
                 const promptElement = part.querySelector('[id^="prompt-"]');
                 const promptText = promptElement ? promptElement.innerText : "";
-                
+
                 // Find the input field (contenteditable div or textarea)
                 const editableDiv = part.querySelector('div[contenteditable="true"]');
                 const textarea = part.querySelector('textarea');
                 const inputField = editableDiv || textarea;
-                
+
                 if (inputField && promptText) {
                     formFields.push({
                         prompt: promptText,
@@ -2273,7 +2375,7 @@ progress::-webkit-progress-value {
 
             for (let i = 0; i < formFields.length; i++) {
                 const field = formFields[i];
-                
+
                 try {
                     // Create a prompt for Gemini that includes context and the specific question
                     const aiPrompt = `You are helping complete a peer-graded assignment. Here is the assignment context:
@@ -2306,19 +2408,19 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
 
                     const data = await response.json();
                     let answer = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-                    
+
                     // Clean up the answer and ensure it's under 50 characters
                     answer = answer.trim();
                     if (answer.length > 50) {
                         answer = answer.substring(0, 47) + "...";
                     }
-                    
+
                     field.answer = answer;
                     console.log(`Generated answer for "${field.prompt.substring(0, 30)}...": ${answer}`);
-                    
+
                     // Small delay to avoid rate limiting
                     await wait(500);
-                    
+
                 } catch (error) {
                     console.error(`Error generating answer for field ${i}:`, error);
                     // Fallback to generic text
@@ -2331,11 +2433,11 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
 
             for (const field of formFields) {
                 if (!field.answer) continue;
-                
+
                 // Scroll field into view
                 field.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 await wait(300);
-                
+
                 // Clear the field first
                 if (field.type === 'contenteditable') {
                     field.element.innerText = '';
@@ -2344,31 +2446,31 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                     setReactInputValue(field.element, '');
                     field.element.focus();
                 }
-                
+
                 await wait(200);
-                
+
                 // Simulate typing character by character
                 await simulateTyping(field.element, field.answer, 50); // 50ms = 0.05s
-                
+
                 console.log(`Filled field: ${field.prompt.substring(0, 30)}...`);
                 await wait(500); // Wait between fields
             }
 
             // Step 7: Handle file uploads (excluding them initially as per flow)
             // We'll handle file uploads after filling text fields
-            const addFileButtons = Array.from(document.querySelectorAll('button')).filter(btn => 
+            const addFileButtons = Array.from(document.querySelectorAll('button')).filter(btn =>
                 btn.innerText.includes('Add File') || btn.innerText.includes('Upload')
             );
-            
+
             if (addFileButtons.length > 0) {
                 toast.loading("Handling file uploads...");
-                
+
                 for (const addBtn of addFileButtons) {
                     try {
                         // Click the "Add File" button
                         addBtn.click();
                         await wait(1000);
-                        
+
                         // Look for file input or browse button
                         const browseBtn = document.querySelector('button.uppy-Dashboard-browse');
                         if (browseBtn) {
@@ -2378,22 +2480,22 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                                 // Generate random MD file content
                                 const randomWords = generateRandomString(50); // 50 words
                                 const mdContent = `# Assignment Submission\n\n${randomWords}\n\n## Details\n\n${randomWords}`;
-                                
+
                                 // Generate random filename (max 20 characters)
                                 const randomFileName = generateRandomString(3, "-") + ".md";
-                                
+
                                 // Create MD file
                                 const file = new File([mdContent], randomFileName, { type: 'text/markdown' });
-                                
+
                                 // Create DataTransfer and assign file
                                 const dataTransfer = new DataTransfer();
                                 dataTransfer.items.add(file);
-                                
+
                                 fileInput.files = dataTransfer.files;
                                 fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-                                
+
                                 console.log(`Uploaded MD file: ${randomFileName}`);
-                                
+
                                 // Wait for upload to process
                                 await wait(3000);
                             }
@@ -2406,7 +2508,7 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
 
             // Step 8: Check the honor code checkbox
             toast.loading("Accepting honor code...");
-            
+
             const honorCodeCheckbox = document.querySelector('input[type="checkbox"]#agreement-checkbox-base');
             if (honorCodeCheckbox && !honorCodeCheckbox.checked) {
                 honorCodeCheckbox.click();
@@ -2415,22 +2517,22 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
 
             // Step 9: Wait 4 seconds then submit
             await wait(4000);
-            
+
             toast.loading("Submitting assignment...");
-            
+
             // Find submit button with data-testid="preview" or aria-label="Submit"
-            const submitBtn = Array.from(document.querySelectorAll('button')).find(btn => 
-                btn.getAttribute('data-testid') === 'preview' || 
+            const submitBtn = Array.from(document.querySelectorAll('button')).find(btn =>
+                btn.getAttribute('data-testid') === 'preview' ||
                 btn.getAttribute('aria-label') === 'Submit'
             );
-            
+
             if (submitBtn) {
                 console.log("Clicking first submit button...");
                 submitBtn.click();
-                
+
                 // Wait 1 second then click 2nd submit button in dialog
                 await wait(1000);
-                
+
                 // Wait for dialog to appear and find the confirmation button
                 try {
                     const confirmBtn = await waitForSelector('button[data-testid="dialog-submit-button"]', 5000);
@@ -2480,7 +2582,7 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
             }
 
             // Filter for discussion prompts
-            const prompts = materials.filter(item => 
+            const prompts = materials.filter(item =>
                 item.contentSummary?.typeName?.includes("discussionPrompt")
             );
 
@@ -2499,11 +2601,11 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                     // Fetch forum question details
                     const forumUrl = `https://www.coursera.org/api/onDemandCourseItemForumQuestions.v1?q=courseItem&courseId=${courseId}&itemId=${prompt.id}&limit=1`;
                     const forumData = await fetch(forumUrl).then(r => r.json());
-                    
+
                     // Extract forum question ID
                     const forumQuestionIdRaw = forumData?.linked?.['onDemandCourseItemForumQuestions.v1']?.[0]?.definition?.courseItemForumQuestionId;
                     const actualForumId = forumQuestionIdRaw?.split("~")[2];
-                    
+
                     if (!actualForumId) {
                         console.error(`Could not extract forum ID for ${prompt.id}`);
                         continue;
@@ -2511,7 +2613,7 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
 
                     // Generate random text (10 words)
                     const randomText = generateRandomString(10);
-                    
+
                     // Post to forum
                     const postUrl = "https://www.coursera.org/api/onDemandCourseForumAnswers.v1";
                     const response = await fetch(postUrl, {
@@ -2595,7 +2697,7 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
             // Fetch submission ID
             const permissionUrl = `https://www.coursera.org/api/onDemandPeerAssignmentPermissions.v1/${userId}~${courseId}~${itemId}`;
             const permissionData = await fetch(permissionUrl).then(r => r.json());
-            
+
             const submissionId = permissionData
                 ?.linked?.['onDemandPeerSubmissionProgresses.v1']?.[0]
                 ?.latestSubmissionSummary?.computed?.id;
@@ -2607,11 +2709,11 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
 
             // Get CSRF token
             const csrf3Token = getCookie('CSRF3-Token');
-            
+
             // Send GraphQL mutation
             const response = await fetch("https://www.coursera.org/graphql-gateway?opname=RequestGradingByPeer", {
                 method: "POST",
-                headers: { 
+                headers: {
                     "Content-Type": "application/json",
                     "x-csrf3-token": csrf3Token
                 },
@@ -2650,7 +2752,7 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
     // ==========================================
     // REACT APP COMPONENT & STATE MANAGEMENT
     // ==========================================
-    
+
     /**
      * React App Component
      * Main UI control panel for the Coursera Tool
@@ -2663,7 +2765,7 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
             geminiAPI: "",
             isShowControlPanel: true
         });
-        
+
         // State for loading indicators
         const [loadingStatus, setLoadingStatus] = React.useState({
             isLoadingCompleteWeek: false,
@@ -2683,25 +2785,25 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
         React.useEffect(() => {
             console.log('Coursera Tool: Loading settings from Tampermonkey storage...');
             console.log('Coursera Tool: Available keys:', isolatedStorage.listAll());
-            
+
             // Load from Tampermonkey's isolated storage
             const loadedConfig = {
                 isAutoSubmitQuiz: isolatedStorage.get('isAutoSubmitQuiz', false),
                 geminiAPI: isolatedStorage.get('geminiAPI', ''),
                 isShowControlPanel: isolatedStorage.get('isShowControlPanel', true)
             };
-            
+
             console.log('Coursera Tool: Loaded config:', loadedConfig);
-            
+
             // Set the config state
             setConfig(loadedConfig);
-            
+
             // Load panel position
             const savedPosition = isolatedStorage.get('panelPosition', null);
             if (savedPosition) {
                 setPosition(savedPosition);
             }
-            
+
             // Log API key status
             if (loadedConfig.geminiAPI) {
                 console.log(`Coursera Tool: ✓ API key loaded: ${loadedConfig.geminiAPI.substring(0, 15)}... (length: ${loadedConfig.geminiAPI.length})`);
@@ -2719,10 +2821,10 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
         const toggleConfig = (key) => {
             const newValue = !config[key];
             console.log(`Coursera Tool: Toggling ${key} to:`, newValue);
-            
+
             // Update state
             setConfig(prev => ({ ...prev, [key]: newValue }));
-            
+
             // Save to Tampermonkey storage
             isolatedStorage.set(key, newValue);
         };
@@ -2730,13 +2832,13 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
         // Update config values - Tampermonkey storage
         const updateConfig = (key, value) => {
             console.log(`Coursera Tool: Updating ${key} to:`, typeof value === 'string' && value.length > 20 ? `${value.substring(0, 20)}...` : value);
-            
+
             // Update state immediately
             setConfig(prev => ({ ...prev, [key]: value }));
-            
+
             // Save to Tampermonkey storage
             const success = isolatedStorage.set(key, value);
-            
+
             if (!success) {
                 console.error(`Coursera Tool: ✗ Failed to save ${key}`);
             }
@@ -2747,7 +2849,7 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
             if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') {
                 return; // Don't start drag on interactive elements
             }
-            
+
             setIsDragging(true);
             // Since panel is positioned from the right, calculate offset accordingly
             const panelWidth = panelRef.current?.offsetWidth || 320;
@@ -2764,16 +2866,16 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                     // Since panel is positioned from the right, invert X calculation
                     const newX = window.innerWidth - e.clientX - dragOffset.x;
                     const newY = e.clientY - dragOffset.y;
-                    
+
                     // Keep panel within viewport
                     const panelWidth = panelRef.current?.offsetWidth || 320;
                     const panelHeight = panelRef.current?.offsetHeight || 400;
                     const maxX = window.innerWidth - panelWidth;
                     const maxY = window.innerHeight - panelHeight;
-                    
+
                     const boundedX = Math.max(0, Math.min(newX, maxX));
                     const boundedY = Math.max(0, Math.min(newY, maxY));
-                    
+
                     setPosition({ x: boundedX, y: boundedY });
                 }
             };
@@ -2818,13 +2920,13 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                 },
                 onClick: () => toggleConfig("isShowControlPanel"),
                 title: "Show Coursera Tool"
-            }, React.createElement("span", { 
-                style: { color: 'white', fontSize: '24px' } 
+            }, React.createElement("span", {
+                style: { color: 'white', fontSize: '24px' }
             }, "⚙"));
         }
 
         // Main panel view
-        return React.createElement("div", { 
+        return React.createElement("div", {
             ref: panelRef,
             style: {
                 position: 'fixed',
@@ -2843,7 +2945,7 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
             }
         },
             // Header
-            React.createElement("div", { 
+            React.createElement("div", {
                 style: {
                     backgroundColor: '#f9fafb',
                     padding: '12px 16px',
@@ -2856,15 +2958,15 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                 },
                 onMouseDown: handleMouseDown
             },
-                React.createElement("h3", { 
-                    style: { 
-                        fontWeight: '600', 
+                React.createElement("h3", {
+                    style: {
+                        fontWeight: '600',
                         color: '#374151',
                         margin: 0,
                         fontSize: '16px'
-                    } 
+                    }
                 }, "Coursera Tool"),
-                React.createElement("button", { 
+                React.createElement("button", {
                     onClick: () => toggleConfig("isShowControlPanel"),
                     style: {
                         background: 'none',
@@ -2882,15 +2984,15 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                     title: "Minimize"
                 }, "✕")
             ),
-            
+
             // Body
-            React.createElement("div", { 
-                style: { 
+            React.createElement("div", {
+                style: {
                     padding: '16px',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '12px'
-                } 
+                }
             },
                 // Complete Week Button
                 React.createElement("button", {
@@ -2911,7 +3013,7 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                         justifyContent: 'center',
                         gap: '8px'
                     }
-                }, 
+                },
                     loadingStatus.isLoadingCompleteWeek ? "⏳ Processing..." : "✓ Complete Week"
                 ),
 
@@ -2933,10 +3035,10 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                 }, loadingStatus.isLoadingQuiz ? "⏳ Solving..." : "🧠 Solve Quiz (Gemini)"),
 
                 // Auto Submit Toggle
-                React.createElement("label", { 
-                    style: { 
-                        display: 'flex', 
-                        alignItems: 'center', 
+                React.createElement("label", {
+                    style: {
+                        display: 'flex',
+                        alignItems: 'center',
                         gap: '8px',
                         cursor: 'pointer',
                         border: '1px solid #e5e7eb',
@@ -2944,7 +3046,7 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                         borderRadius: '8px',
                         backgroundColor: '#f9fafb',
                         fontSize: '13px'
-                    } 
+                    }
                 },
                     React.createElement("input", {
                         type: "checkbox",
@@ -2956,12 +3058,12 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                 ),
 
                 // Peer Review & Assignment Row
-                React.createElement("div", { 
-                    style: { 
-                        display: 'grid', 
+                React.createElement("div", {
+                    style: {
+                        display: 'grid',
                         gridTemplateColumns: '1fr 1fr',
                         gap: '8px'
-                    } 
+                    }
                 },
                     React.createElement("button", {
                         onClick: () => handlePeerGradedAssignment(setLoadingStatus),
@@ -2978,7 +3080,7 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                         },
                         title: "AI-powered assignment completion"
                     }, loadingStatus.isLoadingSubmitPeerGrading ? "⏳" : "🤖 Auto Grade"),
-                    
+
                     React.createElement("button", {
                         onClick: () => handlePeerReview(setLoadingStatus),
                         disabled: loadingStatus.isLoadingReview,
@@ -3013,22 +3115,22 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                 }, loadingStatus.isLoadingDiscuss ? "⏳ Posting..." : "💬 Discussion Prompts"),
 
                 // Settings Section
-                React.createElement("div", { 
-                    style: { 
+                React.createElement("div", {
+                    style: {
                         paddingTop: '12px',
                         borderTop: '1px solid #e5e7eb'
-                    } 
+                    }
                 },
-                    React.createElement("div", { 
-                        style: { 
+                    React.createElement("div", {
+                        style: {
                             marginBottom: '8px',
                             fontSize: '12px',
                             fontWeight: '600',
                             color: '#6b7280',
                             letterSpacing: '0.05em'
-                        } 
+                        }
                     }, "SETTINGS"),
-                    
+
                     React.createElement("input", {
                         type: "password",
                         key: "gemini-api-input",
@@ -3055,9 +3157,9 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                     })
                 )
             ),
-            
+
             // Toast Container
-            React.createElement(Toaster, { 
+            React.createElement(Toaster, {
                 position: "bottom-center",
                 toastOptions: {
                     style: {
@@ -3072,7 +3174,7 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
     // ==========================================
     // INITIALIZATION & TESTING
     // ==========================================
-    
+
     /**
      * Initialize CSRF token collection
      * Runs on page load and monitors for URL changes
@@ -3080,7 +3182,7 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
     const initializeTokenCollection = () => {
         // Collect tokens immediately
         saveCSRFTokens();
-        
+
         // Set up monitoring for SPA navigation
         let lastUrl = window.location.href;
         const observer = new MutationObserver(() => {
@@ -3089,29 +3191,29 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                 saveCSRFTokens();
             }
         });
-        
+
         // Observe URL changes
-        observer.observe(document.body, { 
-            childList: true, 
-            subtree: true 
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
         });
-        
+
         // Also listen to history API
         const originalPushState = history.pushState;
         const originalReplaceState = history.replaceState;
-        
+
         history.pushState = function(...args) {
             originalPushState.apply(this, args);
             saveCSRFTokens();
         };
-        
+
         history.replaceState = function(...args) {
             originalReplaceState.apply(this, args);
             saveCSRFTokens();
         };
-        
+
         window.addEventListener('popstate', saveCSRFTokens);
-        
+
         console.log('Coursera Tool: Token collection initialized');
     };
 
@@ -3121,20 +3223,20 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
     const testStoragePersistence = async () => {
         try {
             // Test write
-            await chrome.storage.local.set({ 
+            await chrome.storage.local.set({
                 testKey: 'testValue',
                 testNumber: 42,
                 testObject: { nested: true }
             });
-            
+
             // Test read
             const result = await chrome.storage.local.get(['testKey', 'testNumber', 'testObject']);
-            
-            if (result.testKey === 'testValue' && 
-                result.testNumber === 42 && 
+
+            if (result.testKey === 'testValue' &&
+                result.testNumber === 42 &&
                 result.testObject.nested === true) {
                 console.log('Coursera Tool: ✓ Storage persistence test passed');
-                
+
                 // Clean up test data
                 await chrome.storage.local.remove(['testKey', 'testNumber', 'testObject']);
                 return true;
@@ -3154,20 +3256,20 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
     const testSettingsPersistence = async () => {
         try {
             console.log('Coursera Tool: Testing settings persistence (Task 3.3)...');
-            
+
             // Test settings
             const testSettings = {
                 geminiAPI: 'test-api-key-12345',
                 isAutoSubmitQuiz: true
             };
-            
+
             // Save test settings
             await chrome.storage.local.set(testSettings);
             console.log('Coursera Tool: ✓ Settings saved');
-            
+
             // Read back settings
             const result = await chrome.storage.local.get(Object.keys(testSettings));
-            
+
             // Verify all settings match
             let allMatch = true;
             for (const key in testSettings) {
@@ -3176,17 +3278,17 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                     allMatch = false;
                 }
             }
-            
+
             if (allMatch) {
                 console.log('Coursera Tool: ✓ All settings persisted correctly');
                 console.log('Coursera Tool: ✓ Task 3.3 - Settings persistence verified');
             } else {
                 console.error('Coursera Tool: ✗ Settings persistence test failed');
             }
-            
+
             // Clean up test data
             await chrome.storage.local.remove(Object.keys(testSettings));
-            
+
             return allMatch;
         } catch (error) {
             console.error('Coursera Tool: Settings persistence test error:', error);
@@ -3202,7 +3304,7 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
         try {
             // These won't actually open tabs, just verify the API works
             console.log('Coursera Tool: Testing tab operations...');
-            
+
             // Test message sending
             chrome.runtime.sendMessage({ action: 'getMetadata' })
                 .then(response => {
@@ -3210,7 +3312,7 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                         console.log('Coursera Tool: ✓ Message passing test passed');
                     }
                 });
-            
+
             return true;
         } catch (error) {
             console.error('Coursera Tool: Tab operations test error:', error);
@@ -3224,7 +3326,7 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
     const testUtilityFunctions = async () => {
         try {
             console.log('Coursera Tool: Testing utility functions...');
-            
+
             // Test wait function
             const startTime = Date.now();
             await wait(100);
@@ -3232,13 +3334,13 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
             if (elapsed >= 100 && elapsed < 150) {
                 console.log('Coursera Tool: ✓ wait() function test passed');
             }
-            
+
             // Test generateRandomString
             const randomStr = generateRandomString(5);
             if (randomStr && randomStr.split(' ').length === 5) {
                 console.log('Coursera Tool: ✓ generateRandomString() test passed');
             }
-            
+
             // Test extendStringPrototype
             extendStringPrototype();
             const testStr = "Test   String\n\nWith   Spaces";
@@ -3246,7 +3348,7 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
             if (cleaned && cleaned.length < testStr.length) {
                 console.log('Coursera Tool: ✓ String.prototype.cleanup() test passed');
             }
-            
+
             return true;
         } catch (error) {
             console.error('Coursera Tool: Utility functions test error:', error);
@@ -3260,11 +3362,11 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
     const testAPIFunctions = async () => {
         try {
             console.log('Coursera Tool: Testing API functions...');
-            
+
             // Test getUserId (may return null if not on course page)
             const userId = getUserId();
             console.log('Coursera Tool: getUserId() returned:', userId || 'null (expected if not on course page)');
-            
+
             // Test getCourseMetadata (only if on a course page)
             if (window.location.pathname.includes('/learn/')) {
                 try {
@@ -3276,7 +3378,7 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                     console.log('Coursera Tool: getCourseMetadata() skipped (not on course page)');
                 }
             }
-            
+
             return true;
         } catch (error) {
             console.error('Coursera Tool: API functions test error:', error);
@@ -3290,30 +3392,30 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
     const testAutomationFeatures = () => {
         try {
             console.log('Coursera Tool: Testing automation features...');
-            
+
             // Test that bypassCourseContent function exists and is callable
             if (typeof bypassCourseContent === 'function') {
                 console.log('Coursera Tool: ✓ bypassCourseContent() function available');
             }
-            
+
             // Test that autoJoin function exists and is callable
             if (typeof autoJoin === 'function') {
                 console.log('Coursera Tool: ✓ autoJoin() function available');
             }
-            
+
             // Test that solveWithGemini function exists and is callable
             if (typeof solveWithGemini === 'function') {
                 console.log('Coursera Tool: ✓ solveWithGemini() function available');
             }
-            
+
             // Test that handleAutoQuiz function exists and is callable
             if (typeof handleAutoQuiz === 'function') {
                 console.log('Coursera Tool: ✓ handleAutoQuiz() function available');
             }
-            
+
             // Note: Actual functionality testing requires being on specific Coursera pages
             console.log('Coursera Tool: Note - Full testing requires course/invitation/quiz pages');
-            
+
             return true;
         } catch (error) {
             console.error('Coursera Tool: Automation features test error:', error);
@@ -3327,18 +3429,18 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
     const testCryptoFunctions = async () => {
         try {
             console.log('Coursera Tool: Testing crypto functions...');
-            
+
             // Test JWT generation
             const testPayload = { test: 'data', userId: '12345' };
             const jwt = await generateAuthToken(testPayload);
             if (jwt && jwt.split('.').length === 3) {
                 console.log('Coursera Tool: ✓ generateAuthToken() test passed');
             }
-            
+
             // Test AES decryption (with dummy data)
             // Note: Real encrypted data would be needed for full test
             console.log('Coursera Tool: ✓ decryptSourceData() available (requires encrypted data to test)');
-            
+
             return true;
         } catch (error) {
             console.error('Coursera Tool: Crypto functions test error:', error);
@@ -3352,13 +3454,13 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
     const testToastNotifications = () => {
         try {
             console.log('Coursera Tool: Testing toast notifications (Task 3.4)...');
-            
+
             // Test success toast
             toast.success('✓ Toast notifications working!', {
                 duration: 2000,
                 position: 'bottom-center'
             });
-            
+
             console.log('Coursera Tool: ✓ Toast notification test passed');
             return true;
         } catch (error) {
@@ -3372,42 +3474,42 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
      */
     const initialize = async () => {
         console.log('Coursera Tool: Initializing...');
-        
+
         // Test storage (Phase 1.2)
         await testStoragePersistence();
-        
+
         // Test settings persistence (Phase 3.3)
         await testSettingsPersistence();
-        
+
         // Test tab operations (Phase 1.2)
         testTabOperations();
-        
+
         // Initialize token collection (Phase 1.2)
         initializeTokenCollection();
-        
+
         // Start auto-join checker (Phase 2.1)
         autoJoin();
-        
+
         // Test utility functions (Phase 1.3)
         await testUtilityFunctions();
-        
+
         // Test API functions (Phase 1.3)
         await testAPIFunctions();
-        
+
         // Test crypto functions (Phase 1.3)
         await testCryptoFunctions();
-        
+
         // Test automation features (Phase 2.1)
         testAutomationFeatures();
-        
+
         // Mount React App first (so toast can be displayed)
         mountReactApp();
-        
+
         // Test toast notifications (Phase 3.4) - must be after React mount
         setTimeout(() => {
             testToastNotifications();
         }, 500);
-        
+
         console.log('Coursera Tool: initiated');
     };
 
@@ -3419,7 +3521,7 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
         try {
             // Create container for React app
             let container = document.getElementById('coursera-tool-container');
-            
+
             if (!container) {
                 container = document.createElement('div');
                 container.id = 'coursera-tool-container';

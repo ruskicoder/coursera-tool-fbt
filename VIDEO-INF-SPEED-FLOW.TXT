@@ -1,0 +1,47 @@
+Request URL
+https://www.coursera.org/api/rest/v1/eventing/info
+Referrer Policy
+strict-origin-when-cross-origin
+content-type
+application/x-www-form-urlencoded;charset=UTF-8
+dnt
+1
+referer
+https://www.coursera.org/learn/advanced-writing/lecture/i719P/using-sources-video-lecture
+sec-ch-ua
+"Google Chrome";v="140", "Chromium";v="140", "Not_A Brand";v="24"
+sec-ch-ua-mobile
+?0
+sec-ch-ua-platform
+"Windows"
+user-agent
+Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.7339.249 Safari/537.36
+
+PAYLOAD:
+
+app=ondemand&clientTimestamp=1764752823114&clientType=web&clientVersion=2.1.0&deviceId=c857cf26-ec88-403c-94f5-691547461222&guid=1a6c1d87-61b9-40cd-a5d9-84757cf34bcd&initialReferrer=https%3A%2F%2Fwww.coursera.org%2Flearn%2Fadvanced-writing%2Fhome%2Fmodule%2F2&key=eventingv3.click_button&referrerUrl=https%3A%2F%2Fwww.coursera.org%2Flearn%2Fadvanced-writing%2Fhome%2Fmodule%2F2&screenSize=%7B%22height%22%3A943%2C%22width%22%3A1676%7D&sequence=513&url=https%3A%2F%2Fwww.coursera.org%2Flearn%2Fadvanced-writing%2Flecture%2Fi719P%2Fusing-sources-video-lecture&userId=140431410&value=%7B%22button%22%3A%7B%22name%22%3A%22video_playback_rate_switcher%22%7D%2C%22videoPlayer%22%3A%7B%22videoId%22%3A%22i719P%22%2C%22autoplay%22%3Atrue%2C%22courseId%22%3A%225c9BeiTUEeW3AhKilvRZ0Q%22%2C%22courseName%22%3A%22Advanced+Writing%22%2C%22courseSlug%22%3A%22advanced-writing%22%2C%22fullscreen%22%3Afalse%2C%22lessonId%22%3A%22uCgH3%22%2C%22lessonName%22%3A%22Advanced+Argument+Essays+Part+1%22%2C%22moduleId%22%3A%22KNXk8%22%2C%22moduleName%22%3A%22Advanced+Argument+Essays%22%2C%22playbackRate%22%3A2%2C%22resolution%22%3A%22360p%22%2C%22audioLanguageEnabled%22%3Atrue%2C%22audioDubbingAvailable%22%3Afalse%2C%22videoDuration%22%3A458%2C%22videoLibraryVersion%22%3A%228.17.4%22%2C%22videoName%22%3A%22Using+Sources+Video+Lecture%22%2C%22videoPosition%22%3A29%2C%22volume%22%3A0%2C%22trimmedStartTime%22%3A0%2C%22dubbingNudgeDisplayed%22%3Afalse%2C%22previousPlaybackRate%22%3A1.75%2C%22readyTime%22%3A307%7D%2C%22page%22%3A%7B%22segment%22%3A%22consumer%22%2C%22type%22%3A%22course_item%22%2C%22route%22%3A%22%2Flearn%2F%3AcourseSlug%2Flecture%2F%3Aitem_id%28%2F%3Aslug%29%22%2C%22appName%22%3A%22ondemand%22%2C%22baseUrl%22%3A%22https%3A%2F%2Fwww.coursera.org%2Flearn%2Fadvanced-writing%2Flecture%2Fi719P%2Fusing-sources-video-lecture%22%2C%22referrerBaseUrl%22%3A%22https%3A%2F%2Fwww.coursera.org%2Flearn%2Fadvanced-writing%2Fhome%2Fmodule%2F2%22%2C%22referrerUrl%22%3A%22https%3A%2F%2Fwww.coursera.org%2Flearn%2Fadvanced-writing%2Fhome%2Fmodule%2F2%22%2C%22url%22%3A%22https%3A%2F%2Fwww.coursera.org%2Flearn%2Fadvanced-writing%2Flecture%2Fi719P%2Fusing-sources-video-lecture%22%7D%2C%22user_properties%22%3A%7B%7D%7D&viewportSize=%7B%22height%22%3A835%2C%22width%22%3A1109%7D&visitId=9e556999-d12d-42ee-8ebf-7c7c2121f7ca%7E1764741617906
+
+ADJUST VIDEO RATE SPEED TO SPEED UP VIDEO TO END. SKIPPING IS NO LONGER POSSIBLE.
+VIDEO
+
+{
+
+    "errorCode": null,
+
+    "message": "Video completion validation failed. You have not watched enough of the video to mark it as complete.",
+
+    "details": null
+
+}
+
+READING
+
+{"errorCode":"Not Authorized","message":null,"details":null}
+
+
+
+READ FLOW AGAIN. JUST UPDATED, IT NEED AN AUTHORIZED REQUEST BEFORE EACH
+
+
+
+the thing is coursera now banned skipping video to end. we will use video speeding method. speed video to extremely high rate (x2000 or more) to instantly jump itself to end. read video-inf-speed flow txt. now because cant skip to end, firstrequest to be at 0s (beginning of video) then speed up, then end video request.

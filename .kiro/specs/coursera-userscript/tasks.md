@@ -148,7 +148,7 @@ Convert the deobfuscated Coursera Chrome extension into a fully-functional Tampe
   - Store selected method and course in settings with proper loading states
   - _Requirements: Complete UI with all automation features from function-flow.txt_
 
-- [ ] 4.2 Implement AI-powered assignment automation
+- [x] 4.2 Implement AI-powered assignment automation
   - Extract assignment instructions from DOM (div[data-testid="peer-assignment-instructions"]) and form fields
   - Parse "Grading Criteria Overview" and "Step-By-Step Assignment Instructions" sections
   - Use Gemini AI to generate contextual answers (under 50 characters per field as per assignment-flow.txt)
@@ -163,14 +163,7 @@ Convert the deobfuscated Coursera Chrome extension into a fully-functional Tampe
   - Create triggerShareModal() helper (find/click Share button, handle modal, extract link)
   - _Requirements: Assignment management functions from function-flow.txt_
 
-- [ ] 4.4 Implement Source Database solver with encryption
-  - Create decryptSourceData() using Web Crypto API for AES-CBC decryption (handle base64, extract IV)
-  - Create fetchAnswersFromSource() to fetch and decrypt course-specific answer data
-  - Create doWithSource() to match questions to answers, apply to form inputs, add visual badges
-  - Create getSource() to check database access, fetch course map, validate user access
-  - _Requirements: Alternative quiz solver using encrypted database from function-flow.txt_
-
-- [ ] 4.5 Enhance quiz automation with full navigation
+- [ ] 4.4 Enhance quiz automation with full navigation
   - Add "Start" button detection and clicking
   - Implement question navigation with "Next" button handling and index tracking ("Question 1 of 10")
   - Loop through all questions until completion
@@ -178,10 +171,10 @@ Convert the deobfuscated Coursera Chrome extension into a fully-functional Tampe
   - Verify all questions answered before submission
   - _Requirements: Complete quiz automation with navigation from function-flow.txt_
 
-- [ ] 4.6 Add comprehensive error handling and testing
+- [ ] 4.5 Add comprehensive error handling and testing
   - Wrap all API calls in try-catch blocks with user-friendly toast messages
   - Implement retry logic for network failures and rate limiting
-  - Test all automation features on live Coursera pages (AI assignments, quiz solving with both methods, peer reviews, discussions)
+  - Test all automation features on live Coursera pages (AI-powered assignments, Gemini quiz solving, peer reviews, discussions)
   - Verify settings persistence across page reloads
   - _Requirements: Robust error handling and end-to-end testing from function-flow.txt_ 
 

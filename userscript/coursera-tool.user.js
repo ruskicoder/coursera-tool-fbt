@@ -1924,52 +1924,90 @@ progress::-webkit-progress-value {
     /**
      * Handle peer review automation
      * Automatically fills out peer review forms with maximum scores and positive feedback
+     * Repeats the process 5 times for multiple peer reviews
      * @param {Function} setLoadingStatus - React state setter for loading status
      */
     const handlePeerReview = async (setLoadingStatus) => {
         if (!location.pathname.includes("review")) {
-            alert("This is not a peer review page.");
+            toast.error("This is not a peer review page.");
             return;
         }
         
         setLoadingStatus(prev => ({...prev, isLoadingReview: true}));
 
         try {
-            // Select the highest score options (usually found last in radio groups)
-            const radioGroups = document.querySelectorAll(".rc-RadioGroup");
-            radioGroups.forEach(group => {
-                const radios = group.querySelectorAll("input[type='radio']");
-                if (radios.length > 0) {
-                    // Click the last one (usually max points)
-                    radios[radios.length - 1].click();
+            // Repeat the review process 5 times
+            for (let reviewCount = 1; reviewCount <= 5; reviewCount++) {
+                toast.loading(`Processing review ${reviewCount} of 5...`);
+                
+                // Wait for form to load
+                await wait(1000);
+                
+                // Find all form parts with radio options
+                const formParts = document.querySelectorAll('.rc-FormPart');
+                
+                for (const formPart of formParts) {
+                    // Check if this form part has radio buttons
+                    const radioInputs = formPart.querySelectorAll('input[type="radio"]');
+                    
+                    if (radioInputs.length > 0) {
+                        // Select the first radio option (highest score - usually "Yes, perfect" or "5 points")
+                        radioInputs[0].click();
+                        await wait(200); // Small delay between selections
+                    }
+                    
+                    // Check if this form part has textarea for comments
+                    const textarea = formPart.querySelector('textarea');
+                    if (textarea) {
+                        const feedback = "Great work! You covered all the points effectively.";
+                        setReactInputValue(textarea, feedback);
+                        await wait(200);
+                    }
                 }
-            });
-
-            // Fill text comments with generic positive feedback
-            const comments = document.querySelectorAll("textarea");
-            comments.forEach(area => {
-                area.value = "Great work! You covered all the points effectively.";
-                area.dispatchEvent(new Event('input', { bubbles: true }));
-            });
-
-            // Submit
-            const submitBtn = document.querySelector("button[data-test='submit-button']");
-            if (submitBtn) {
-                await wait(500);
-                submitBtn.click();
+                
+                // Find and click "Submit Review" button
+                const submitBtn = Array.from(document.querySelectorAll('button')).find(btn => 
+                    btn.innerText.includes('Submit Review')
+                );
+                
+                if (submitBtn) {
+                    console.log(`Submitting review ${reviewCount}...`);
+                    submitBtn.click();
+                    
+                    // Wait 2-3 seconds for the new form to load
+                    await wait(2500);
+                    
+                    toast.success(`Review ${reviewCount} submitted!`);
+                } else {
+                    console.log(`Submit button not found for review ${reviewCount}`);
+                    toast.warning(`Could not find submit button for review ${reviewCount}`);
+                    break;
+                }
+                
+                // Check if there are more reviews to complete
+                if (reviewCount < 5) {
+                    // Wait a bit before starting next review
+                    await wait(1000);
+                    
+                    // Check if we're still on a review page
+                    if (!location.pathname.includes("review")) {
+                        toast.success(`Completed ${reviewCount} reviews. No more reviews available.`);
+                        break;
+                    }
+                }
             }
             
-            toast.success("Review Submitted");
+            toast.success("All peer reviews completed!");
         } catch (e) {
             console.error("Peer Review Error:", e);
-            toast.error("Review Failed");
+            toast.error("Review failed: " + e.message);
         } finally {
             setLoadingStatus(prev => ({...prev, isLoadingReview: false}));
         }
     };
 
     /**
-     * Handle peer assignment submission automation
+     * Handle peer assignment submission automation (Legacy - Random Text)
      * Generates random content and fills assignment forms including file uploads
      * @param {Function} setLoadingStatus - React state setter for loading status
      */
@@ -2042,6 +2080,381 @@ progress::-webkit-progress-value {
         } catch (e) {
             console.error("Assignment Submission Error:", e);
             toast.error("Assignment submission failed");
+        } finally {
+            setLoadingStatus(prev => ({...prev, isLoadingSubmitPeerGrading: false}));
+        }
+    };
+
+    /**
+     * Set value for React-controlled inputs
+     * This bypasses React's value tracking by using the native setter
+     * @param {HTMLElement} element - The input element
+     * @param {string} value - The value to set
+     */
+    const setReactInputValue = (element, value) => {
+        // Get the native setter for the element type
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+            element.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype,
+            'value'
+        ).set;
+        
+        // Use the native setter to bypass React's tracking
+        nativeInputValueSetter.call(element, value);
+        
+        // Trigger React's change detection
+        const event = new Event('input', { bubbles: true });
+        element.dispatchEvent(event);
+    };
+
+    /**
+     * Simulate typing character by character with delay for React inputs
+     * @param {HTMLElement} element - The input element to type into
+     * @param {string} text - The text to type
+     * @param {number} delay - Delay between characters in milliseconds (default 50ms)
+     */
+    const simulateTyping = async (element, text, delay = 50) => {
+        element.focus();
+        
+        // For contenteditable divs (rich text editors)
+        if (element.contentEditable === 'true') {
+            // Clear first
+            element.innerText = '';
+            
+            // Type character by character
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                element.innerText += char;
+                element.dispatchEvent(new Event('input', { bubbles: true }));
+                await wait(delay);
+            }
+            
+            // Final events
+            element.dispatchEvent(new Event('change', { bubbles: true }));
+            element.blur();
+        } else {
+            // For input/textarea - use React-compatible method
+            // Type character by character
+            for (let i = 0; i < text.length; i++) {
+                const partialText = text.substring(0, i + 1);
+                setReactInputValue(element, partialText);
+                await wait(delay);
+            }
+            
+            // Final events
+            element.dispatchEvent(new Event('change', { bubbles: true }));
+            element.blur();
+        }
+    };
+
+    /**
+     * Handle AI-powered peer graded assignment automation (Task 4.2)
+     * Extracts assignment instructions, uses Gemini AI to generate contextual answers,
+     * fills form fields intelligently with character-by-character typing, and submits the assignment
+     * @param {Function} setLoadingStatus - React state setter for loading status
+     */
+    const handlePeerGradedAssignment = async (setLoadingStatus) => {
+        setLoadingStatus(prev => ({...prev, isLoadingSubmitPeerGrading: true}));
+
+        try {
+            // Check if on assignment submission page
+            if (!location.href.includes("assignment-submission") && !location.href.includes("peer")) {
+                toast.error("Please navigate to an assignment submission page.");
+                setLoadingStatus(prev => ({...prev, isLoadingSubmitPeerGrading: false}));
+                return;
+            }
+
+            // Get Gemini API key
+            const geminiAPI = isolatedStorage.get('geminiAPI', '');
+            if (!geminiAPI) {
+                toast.error("Please set your Gemini API key in settings.");
+                setLoadingStatus(prev => ({...prev, isLoadingSubmitPeerGrading: false}));
+                return;
+            }
+
+            toast.loading("Extracting assignment instructions...");
+
+            // Step 1: Extract assignment instructions from the specific div
+            let assignmentContext = "";
+            
+            const instructionsContainer = document.querySelector('div[data-testid="peer-assignment-instructions"]');
+            if (instructionsContainer) {
+                assignmentContext += "Assignment Instructions:\n" + instructionsContainer.innerText + "\n\n";
+            }
+
+            // Extract "Grading Criteria Overview" section
+            const gradingCriteria = Array.from(document.querySelectorAll('h3')).find(h => 
+                h.innerText.includes("Grading Criteria") || h.innerText.includes("Grading Overview")
+            );
+            if (gradingCriteria) {
+                const criteriaContent = gradingCriteria.closest('[data-testid="accordion-item"]');
+                if (criteriaContent) {
+                    assignmentContext += "Grading Criteria:\n" + criteriaContent.innerText + "\n\n";
+                }
+            }
+
+            // Extract "Step-By-Step Assignment Instructions" section
+            const stepByStep = Array.from(document.querySelectorAll('h3')).find(h => 
+                h.innerText.includes("Step-By-Step") || h.innerText.includes("Assignment Instructions")
+            );
+            if (stepByStep) {
+                const stepsContent = stepByStep.closest('[data-testid="accordion-item"]');
+                if (stepsContent) {
+                    assignmentContext += "Step-by-Step Instructions:\n" + stepsContent.innerText + "\n\n";
+                }
+            }
+
+            // If no specific instructions found, try to get general context
+            if (!assignmentContext) {
+                const mainContent = document.querySelector('.rc-CML') || document.querySelector('main');
+                if (mainContent) {
+                    assignmentContext = "Assignment Context:\n" + mainContent.innerText.substring(0, 2000);
+                }
+            }
+
+            console.log("Assignment Context Extracted:", assignmentContext.substring(0, 500) + "...");
+
+            // Step 2: Click "My Submission" tab
+            const mySubmissionTab = Array.from(document.querySelectorAll('button[role="tab"]')).find(btn => 
+                btn.innerText.includes("My submission") || btn.innerText.includes("My Submission")
+            );
+            if (mySubmissionTab && mySubmissionTab.getAttribute('aria-selected') !== 'true') {
+                mySubmissionTab.click();
+                await wait(2000); // Wait for tab content to load
+            }
+
+            // Step 3: Wait for form to load
+            await waitForSelector(".rc-AssignmentSubmitEditView, .rc-FormPart", 5000).catch(() => {});
+
+            // Step 4: Extract form fields and their prompts
+            const formFields = [];
+            
+            // Find all submission parts (prompts)
+            const submissionParts = document.querySelectorAll('.rc-SubmissionPartEditView');
+            
+            for (const part of submissionParts) {
+                // Extract the prompt/question text
+                const promptElement = part.querySelector('[id^="prompt-"]');
+                const promptText = promptElement ? promptElement.innerText : "";
+                
+                // Find the input field (contenteditable div or textarea)
+                const editableDiv = part.querySelector('div[contenteditable="true"]');
+                const textarea = part.querySelector('textarea');
+                const inputField = editableDiv || textarea;
+                
+                if (inputField && promptText) {
+                    formFields.push({
+                        prompt: promptText,
+                        element: inputField,
+                        type: editableDiv ? 'contenteditable' : 'textarea'
+                    });
+                }
+            }
+
+            // Also check for Project Title field
+            const titleInput = document.querySelector('input#title');
+            if (titleInput) {
+                formFields.unshift({
+                    prompt: "Project Title",
+                    element: titleInput,
+                    type: 'input'
+                });
+            }
+
+            if (formFields.length === 0) {
+                toast.error("Could not find form fields to fill.");
+                setLoadingStatus(prev => ({...prev, isLoadingSubmitPeerGrading: false}));
+                return;
+            }
+
+            console.log(`Found ${formFields.length} form fields to fill`);
+
+            // Step 5: Generate AI responses for each field (keep under 50 characters)
+            toast.loading(`Generating AI responses for ${formFields.length} fields...`);
+
+            for (let i = 0; i < formFields.length; i++) {
+                const field = formFields[i];
+                
+                try {
+                    // Create a prompt for Gemini that includes context and the specific question
+                    const aiPrompt = `You are helping complete a peer-graded assignment. Here is the assignment context:
+
+${assignmentContext}
+
+Now answer this specific question/prompt concisely (IMPORTANT: keep answer under 50 characters):
+
+${field.prompt}
+
+Provide only the answer, no explanations or meta-commentary. Keep it under 50 characters.`;
+
+                    // Call Gemini API
+                    const response = await fetch(`${CONSTANTS.GEMINI_API_URL}?key=${geminiAPI}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [{ text: aiPrompt }]
+                            }]
+                        })
+                    });
+
+                    if (!response.ok) {
+                        console.error(`Gemini API error for field ${i}:`, await response.text());
+                        // Fallback to generic text
+                        field.answer = `Response ${i + 1}`;
+                        continue;
+                    }
+
+                    const data = await response.json();
+                    let answer = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                    
+                    // Clean up the answer and ensure it's under 50 characters
+                    answer = answer.trim();
+                    if (answer.length > 50) {
+                        answer = answer.substring(0, 47) + "...";
+                    }
+                    
+                    field.answer = answer;
+                    console.log(`Generated answer for "${field.prompt.substring(0, 30)}...": ${answer}`);
+                    
+                    // Small delay to avoid rate limiting
+                    await wait(500);
+                    
+                } catch (error) {
+                    console.error(`Error generating answer for field ${i}:`, error);
+                    // Fallback to generic text
+                    field.answer = `Response ${i + 1}`;
+                }
+            }
+
+            // Step 6: Fill the form fields with sequential character input (0.05s interval)
+            toast.loading("Filling form fields with typing simulation...");
+
+            for (const field of formFields) {
+                if (!field.answer) continue;
+                
+                // Scroll field into view
+                field.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                await wait(300);
+                
+                // Clear the field first
+                if (field.type === 'contenteditable') {
+                    field.element.innerText = '';
+                    field.element.focus();
+                } else {
+                    setReactInputValue(field.element, '');
+                    field.element.focus();
+                }
+                
+                await wait(200);
+                
+                // Simulate typing character by character
+                await simulateTyping(field.element, field.answer, 50); // 50ms = 0.05s
+                
+                console.log(`Filled field: ${field.prompt.substring(0, 30)}...`);
+                await wait(500); // Wait between fields
+            }
+
+            // Step 7: Handle file uploads (excluding them initially as per flow)
+            // We'll handle file uploads after filling text fields
+            const addFileButtons = Array.from(document.querySelectorAll('button')).filter(btn => 
+                btn.innerText.includes('Add File') || btn.innerText.includes('Upload')
+            );
+            
+            if (addFileButtons.length > 0) {
+                toast.loading("Handling file uploads...");
+                
+                for (const addBtn of addFileButtons) {
+                    try {
+                        // Click the "Add File" button
+                        addBtn.click();
+                        await wait(1000);
+                        
+                        // Look for file input or browse button
+                        const browseBtn = document.querySelector('button.uppy-Dashboard-browse');
+                        if (browseBtn) {
+                            // Find the hidden file input
+                            const fileInput = document.querySelector('input.uppy-Dashboard-input[type="file"]');
+                            if (fileInput) {
+                                // Generate random MD file content
+                                const randomWords = generateRandomString(50); // 50 words
+                                const mdContent = `# Assignment Submission\n\n${randomWords}\n\n## Details\n\n${randomWords}`;
+                                
+                                // Generate random filename (max 20 characters)
+                                const randomFileName = generateRandomString(3, "-") + ".md";
+                                
+                                // Create MD file
+                                const file = new File([mdContent], randomFileName, { type: 'text/markdown' });
+                                
+                                // Create DataTransfer and assign file
+                                const dataTransfer = new DataTransfer();
+                                dataTransfer.items.add(file);
+                                
+                                fileInput.files = dataTransfer.files;
+                                fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                
+                                console.log(`Uploaded MD file: ${randomFileName}`);
+                                
+                                // Wait for upload to process
+                                await wait(3000);
+                            }
+                        }
+                    } catch (error) {
+                        console.error("File upload error:", error);
+                    }
+                }
+            }
+
+            // Step 8: Check the honor code checkbox
+            toast.loading("Accepting honor code...");
+            
+            const honorCodeCheckbox = document.querySelector('input[type="checkbox"]#agreement-checkbox-base');
+            if (honorCodeCheckbox && !honorCodeCheckbox.checked) {
+                honorCodeCheckbox.click();
+                await wait(500);
+            }
+
+            // Step 9: Wait 4 seconds then submit
+            await wait(4000);
+            
+            toast.loading("Submitting assignment...");
+            
+            // Find submit button with data-testid="preview" or aria-label="Submit"
+            const submitBtn = Array.from(document.querySelectorAll('button')).find(btn => 
+                btn.getAttribute('data-testid') === 'preview' || 
+                btn.getAttribute('aria-label') === 'Submit'
+            );
+            
+            if (submitBtn) {
+                console.log("Clicking first submit button...");
+                submitBtn.click();
+                
+                // Wait 1 second then click 2nd submit button in dialog
+                await wait(1000);
+                
+                // Wait for dialog to appear and find the confirmation button
+                try {
+                    const confirmBtn = await waitForSelector('button[data-testid="dialog-submit-button"]', 5000);
+                    if (confirmBtn) {
+                        console.log("Clicking second submit button in dialog...");
+                        confirmBtn.click();
+                        await wait(1000);
+                        toast.success("AI-powered assignment submitted successfully!");
+                    } else {
+                        console.log("Second submit button not found");
+                        toast.warning("First submit clicked. Please confirm submission manually.");
+                    }
+                } catch (error) {
+                    console.log("Dialog submit button not found:", error);
+                    toast.warning("First submit clicked. Please confirm submission manually.");
+                }
+            } else {
+                console.log("Submit button not found");
+                toast.warning("Assignment filled! Please review and submit manually.");
+            }
+
+        } catch (e) {
+            console.error("AI Assignment Submission Error:", e);
+            toast.error("AI assignment submission failed: " + e.message);
         } finally {
             setLoadingStatus(prev => ({...prev, isLoadingSubmitPeerGrading: false}));
         }
@@ -2551,7 +2964,7 @@ progress::-webkit-progress-value {
                     } 
                 },
                     React.createElement("button", {
-                        onClick: () => handlePeerAssignmentSubmission(setLoadingStatus),
+                        onClick: () => handlePeerGradedAssignment(setLoadingStatus),
                         disabled: loadingStatus.isLoadingSubmitPeerGrading,
                         style: {
                             backgroundColor: loadingStatus.isLoadingSubmitPeerGrading ? '#9ca3af' : '#9333ea',
@@ -2562,8 +2975,9 @@ progress::-webkit-progress-value {
                             cursor: loadingStatus.isLoadingSubmitPeerGrading ? 'not-allowed' : 'pointer',
                             fontWeight: '500',
                             fontSize: '13px'
-                        }
-                    }, loadingStatus.isLoadingSubmitPeerGrading ? "⏳" : "📝 Assignment"),
+                        },
+                        title: "AI-powered assignment completion"
+                    }, loadingStatus.isLoadingSubmitPeerGrading ? "⏳" : "🤖 Auto Grade"),
                     
                     React.createElement("button", {
                         onClick: () => handlePeerReview(setLoadingStatus),

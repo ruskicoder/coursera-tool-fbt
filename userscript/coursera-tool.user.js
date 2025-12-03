@@ -2292,9 +2292,9 @@ progress::-webkit-progress-value {
      * Simulate typing character by character with delay for React inputs
      * @param {HTMLElement} element - The input element to type into
      * @param {string} text - The text to type
-     * @param {number} delay - Delay between characters in milliseconds (default 50ms)
+     * @param {number} delay - Delay between characters in milliseconds (default 1ms - fastest)
      */
-    const simulateTyping = async (element, text, delay = 50) => {
+    const simulateTyping = async (element, text, delay = 1) => {
         element.focus();
 
         // For contenteditable divs (rich text editors)
@@ -2302,12 +2302,12 @@ progress::-webkit-progress-value {
             // Clear first
             element.innerText = '';
 
-            // Type character by character
+            // Type character by character at fastest speed
             for (let i = 0; i < text.length; i++) {
                 const char = text[i];
                 element.innerText += char;
                 element.dispatchEvent(new Event('input', { bubbles: true }));
-                await wait(delay);
+                if (delay > 0) await wait(delay);
             }
 
             // Final events
@@ -2315,11 +2315,11 @@ progress::-webkit-progress-value {
             element.blur();
         } else {
             // For input/textarea - use React-compatible method
-            // Type character by character
+            // Type character by character at fastest speed
             for (let i = 0; i < text.length; i++) {
                 const partialText = text.substring(0, i + 1);
                 setReactInputValue(element, partialText);
-                await wait(delay);
+                if (delay > 0) await wait(delay);
             }
 
             // Final events
@@ -2457,16 +2457,39 @@ progress::-webkit-progress-value {
                 const field = formFields[i];
 
                 try {
+                    // Determine answer length from instructions
+                    let maxLength = 500; // Default reasonable length
+                    let lengthInstruction = "";
+
+                    // Check for word count requirements in context or prompt
+                    const wordCountMatch = (assignmentContext + field.prompt).match(/(\d+)\s*(?:words?|từ|characters?|ký tự)/i);
+                    if (wordCountMatch) {
+                        const requiredCount = parseInt(wordCountMatch[1]);
+                        // If word count specified, estimate characters (avg 5 chars per word + spaces)
+                        maxLength = requiredCount * 6;
+                        lengthInstruction = `Write approximately ${requiredCount} words (around ${maxLength} characters).`;
+                    } else if (field.prompt.toLowerCase().includes('title') || field.type === 'input') {
+                        // Titles should be short
+                        maxLength = 100;
+                        lengthInstruction = "Keep it concise (under 100 characters).";
+                    } else if (assignmentContext.toLowerCase().includes('essay') || assignmentContext.toLowerCase().includes('detailed')) {
+                        // Essays need more content
+                        maxLength = 2000;
+                        lengthInstruction = "Provide a detailed response (aim for 300-400 words).";
+                    }
+
                     // Create a prompt for Gemini that includes context and the specific question
                     const aiPrompt = `You are helping complete a peer-graded assignment. Here is the assignment context:
 
 ${assignmentContext}
 
-Now answer this specific question/prompt concisely (IMPORTANT: keep answer under 50 characters):
+Now answer this specific question/prompt:
 
 ${field.prompt}
 
-Provide only the answer, no explanations or meta-commentary. Keep it under 50 characters.`;
+${lengthInstruction}
+
+Provide only the answer, no explanations or meta-commentary.`;
 
                     // Call Gemini API
                     const response = await fetch(`${CONSTANTS.GEMINI_API_URL}?key=${geminiAPI}`, {
@@ -2489,14 +2512,16 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                     const data = await response.json();
                     let answer = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-                    // Clean up the answer and ensure it's under 50 characters
+                    // Clean up the answer
                     answer = answer.trim();
-                    if (answer.length > 50) {
-                        answer = answer.substring(0, 47) + "...";
+                    
+                    // Only truncate if significantly over limit (allow 20% overflow)
+                    if (answer.length > maxLength * 1.2) {
+                        answer = answer.substring(0, maxLength) + "...";
                     }
 
                     field.answer = answer;
-                    console.log(`Generated answer for "${field.prompt.substring(0, 30)}...": ${answer}`);
+                    console.log(`Generated answer for "${field.prompt.substring(0, 30)}..." (${answer.length} chars)`);
 
                     // Small delay to avoid rate limiting
                     await wait(500);
@@ -2529,11 +2554,11 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
 
                 await wait(200);
 
-                // Simulate typing character by character
-                await simulateTyping(field.element, field.answer, 50); // 50ms = 0.05s
+                // Simulate typing character by character at fastest speed
+                await simulateTyping(field.element, field.answer, 1); // 1ms = fastest supported
 
                 console.log(`Filled field: ${field.prompt.substring(0, 30)}...`);
-                await wait(500); // Wait between fields
+                await wait(300); // Wait between fields
             }
 
             // Step 7: Handle file uploads (excluding them initially as per flow)
@@ -2543,10 +2568,46 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
             );
 
             if (addFileButtons.length > 0) {
-                toast.loading("Handling file uploads...");
+                toast.loading("Generating file content with AI...");
 
                 for (const addBtn of addFileButtons) {
                     try {
+                        // Generate AI content for file
+                        const filePrompt = `You are helping complete a peer-graded assignment. Here is the assignment context:
+
+${assignmentContext}
+
+Generate a comprehensive document that addresses the assignment requirements. Format it as a professional document with proper structure, headings, and detailed content. Aim for 500-800 words.
+
+Provide only the document content, no meta-commentary.`;
+
+                        let fileContent = "";
+                        
+                        try {
+                            const fileResponse = await fetch(`${CONSTANTS.GEMINI_API_URL}?key=${geminiAPI}`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                    contents: [{
+                                        parts: [{ text: filePrompt }]
+                                    }]
+                                })
+                            });
+
+                            if (fileResponse.ok) {
+                                const fileData = await fileResponse.json();
+                                fileContent = fileData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                            }
+                        } catch (error) {
+                            console.error("AI file generation error:", error);
+                        }
+
+                        // Fallback to random content if AI fails
+                        if (!fileContent) {
+                            const randomWords = generateRandomString(50);
+                            fileContent = `# Assignment Submission\n\n${randomWords}\n\n## Details\n\n${randomWords}`;
+                        }
+
                         // Click the "Add File" button
                         addBtn.click();
                         await wait(1000);
@@ -2557,15 +2618,12 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                             // Find the hidden file input
                             const fileInput = document.querySelector('input.uppy-Dashboard-input[type="file"]');
                             if (fileInput) {
-                                // Generate random MD file content
-                                const randomWords = generateRandomString(50); // 50 words
-                                const mdContent = `# Assignment Submission\n\n${randomWords}\n\n## Details\n\n${randomWords}`;
+                                // Generate filename based on assignment
+                                const timestamp = Date.now();
+                                const fileName = `assignment_${timestamp}.md`;
 
-                                // Generate random filename (max 20 characters)
-                                const randomFileName = generateRandomString(3, "-") + ".md";
-
-                                // Create MD file
-                                const file = new File([mdContent], randomFileName, { type: 'text/markdown' });
+                                // Create MD file with AI-generated content
+                                const file = new File([fileContent], fileName, { type: 'text/markdown' });
 
                                 // Create DataTransfer and assign file
                                 const dataTransfer = new DataTransfer();
@@ -2574,7 +2632,7 @@ Provide only the answer, no explanations or meta-commentary. Keep it under 50 ch
                                 fileInput.files = dataTransfer.files;
                                 fileInput.dispatchEvent(new Event('change', { bubbles: true }));
 
-                                console.log(`Uploaded MD file: ${randomFileName}`);
+                                console.log(`Uploaded AI-generated file: ${fileName} (${fileContent.length} chars)`);
 
                                 // Wait for upload to process
                                 await wait(3000);

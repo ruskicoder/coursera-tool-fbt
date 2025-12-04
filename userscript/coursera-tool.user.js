@@ -2260,8 +2260,7 @@ Output ONLY valid JSON. No explanations outside the JSON.`;
                 toast.success('Agreement checkbox checked');
             }
 
-            // Step 2: Wait 4 seconds
-            await wait(4000);
+            await wait(6000);
 
             // Step 3: Click submit button
             const submitBtn = document.querySelector('button[data-testid="submit-button"]');

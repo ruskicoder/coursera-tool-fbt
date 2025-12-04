@@ -22,7 +22,7 @@ How to detect:
 + honor code checkbox
 - sequential type (show each question one of a time):
 answer all questions
-delay 2s, then submit1: <button class="cds-131 cds-button-disableElevation cds-button-primary css-brj4hj" tabindex="0" type="button" aria-disabled="false"><span class="cds-button-label">Check</span></button>
+delay 4s, then submit1: <button class="cds-131 cds-button-disableElevation cds-button-primary css-brj4hj" tabindex="0" type="button" aria-disabled="false"><span class="cds-button-label">Check</span></button>
 if auto submit checked
 delay 4s then:
     if "next", then submit2: <button class="cds-131 cds-button-disableElevation cds-button-primary css-brj4hj" tabindex="0" type="button" aria-disabled="false"><span class="cds-button-label">Next<span class="cds-button-endIcon"><svg aria-hidden="true" fill="none" focusable="false" height="24" viewBox="0 0 20 20" width="24" id="cds-react-aria9137611128-:rbi:" class="css-1u8qly9"><path d="M13.125 10.75H4.75a.728.728 0 01-.535-.214.72.72 0 01-.215-.532c0-.21.072-.39.215-.535a.72.72 0 01.535-.219h8.375L9.454 5.579a.721.721 0 01-.225-.527c0-.201.077-.382.23-.541a.745.745 0 011.058.006l4.954 4.96a.722.722 0 01.216.526.76.76 0 01-.052.282.692.692 0 01-.156.236l-4.958 4.958a.681.681 0 01-.521.219.776.776 0 01-.52-.23.766.766 0 01-.23-.544.71.71 0 01.23-.528l3.645-3.646z" fill="currentColor"></path></svg></span></span></button>

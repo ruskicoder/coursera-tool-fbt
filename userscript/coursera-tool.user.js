@@ -1870,12 +1870,22 @@ progress::-webkit-progress-value {
             return null;
         }
 
-        const questionListJSON = JSON.stringify(questions.map(q => ({ term: q.term, definition: "" })));
+        const questionListJSON = JSON.stringify(questions.map(q => ({ 
+            question: q.question, 
+            options: q.options || [],
+            type: q.type
+        })));
 
-        // Prompt Engineering
-        const systemPrompt = `You are an expert tutor. I will provide a list of quiz questions in JSON format.
-    Return a JSON array where 'term' is the question and 'definition' is the correct answer.
-    Output ONLY valid JSON. No explanations.`;
+        // Prompt Engineering based on question type
+        const systemPrompt = `You are an expert tutor. I will provide quiz questions in JSON format.
+For each question, return the correct answer based on the question type:
+
+1. For multiple choice/true-false: Return the EXACT text of the correct option (no paraphrasing)
+2. For "select all that apply": Return an array of ALL correct option texts (exact matches)
+3. For textbox questions: Return in format "Reasoning: [brief 100-200 char reasoning]\\nAnswer: [short answer only, no explanation]"
+
+Return a JSON array with format: [{"question": "...", "answer": "..." or ["...", "..."] for multiple}]
+Output ONLY valid JSON. No explanations outside the JSON.`;
 
         const payload = {
             system_instruction: { parts: { text: systemPrompt } },
@@ -1911,7 +1921,7 @@ progress::-webkit-progress-value {
 
     /**
      * Handle automatic quiz solving using Gemini AI
-     * Extracts questions from DOM, gets answers from Gemini, and applies them
+     * Implements the correct flow from Quiz-slove-flow.txt
      * @param {Function} setLoadingStatus - React state setter for loading status
      */
     const handleAutoQuiz = async (setLoadingStatus) => {
@@ -1932,129 +1942,352 @@ progress::-webkit-progress-value {
 
             extendStringPrototype(); // Helper for text matching
 
-            // Wait for the form to load - try multiple selectors
-            let formParts = [];
-            try {
-                await waitForSelector(".rc-FormPart", 5000);
-                formParts = Array.from(document.querySelectorAll(".rc-FormPart"));
-            } catch (e) {
-                // Try alternative selectors for different page types
-                console.log("Trying alternative selectors...");
+            // Detect exam type based on updated criteria:
+            // List type: multiple questions (>=1) + honor code checkbox
+            // Sequential type: 1 question + no honor code checkbox + "Check" button
+            
+            const questionContainers = document.querySelectorAll('div[role="group"][data-testid^="part-"]');
+            const honorCodeCheckbox = document.querySelector('input[id="agreement-checkbox-base"]');
+            const checkButton = Array.from(document.querySelectorAll('button')).find(btn => 
+                btn.textContent.trim() === 'Check'
+            );
+            
+            const isListType = questionContainers.length > 1 || (questionContainers.length >= 1 && honorCodeCheckbox);
+            const isSequentialType = questionContainers.length === 1 && !honorCodeCheckbox && checkButton;
+            
+            console.log(`Quiz detection: ${questionContainers.length} questions, honor code: ${!!honorCodeCheckbox}, check button: ${!!checkButton}`);
+            console.log(`Quiz type: ${isSequentialType ? 'Sequential' : 'List'}`);
 
-                // Try common quiz/form containers
-                const alternativeSelectors = [
-                    "div[data-test='question-container']",
-                    ".rc-FormPartsContainer .rc-CML", // More specific: CML inside form container
-                    "div[role='group']", // Questions often have role=group
-                    "form .question",
-                    "[data-test*='question']",
-                    ".rc-CML" // Fallback to broad selector
-                ];
-
-                for (const selector of alternativeSelectors) {
-                    formParts = Array.from(document.querySelectorAll(selector));
-                    if (formParts.length > 0) {
-                        console.log(`Found ${formParts.length} questions using selector: ${selector}`);
-                        break;
-                    }
-                }
-
-                if (formParts.length === 0) {
-                    toast.error("Could not find quiz questions on this page. The page structure may have changed.");
-                    setLoadingStatus(prev => ({...prev, isLoadingQuiz: false}));
-                    return;
-                }
-            }
-
-            // Scrape Questions
-            const questions = formParts.map(part => {
-                // Basic extraction - gets the full text of the question block
-                // Refining this often requires specific selectors for question text vs options
-                return {
-                    term: part.innerText,
-                    id: part.id // if available
-                };
-            });
-
-            // Get Answers
-            const answers = await solveWithGemini(questions);
-
-            if (answers) {
-                // Apply Answers
-                for (const part of formParts) {
-                    const questionText = part.innerText.cleanup();
-                    const match = answers.find(a =>
-                        a.term.cleanup().includes(questionText) || questionText.includes(a.term.cleanup())
-                    );
-
-                    if (match && match.definition) {
-                        const correctAnswer = match.definition.cleanup();
-
-                        // Skip if answer is empty or too short
-                        if (!correctAnswer || correctAnswer.length < 2) {
-                            console.log(`⚠ Skipping question - empty or invalid answer`);
-                            continue;
-                        }
-
-                        console.log(`Matching answer: "${correctAnswer}"`);
-
-                        // Find all options in this question
-                        const options = part.querySelectorAll(".rc-Option");
-                        let foundMatch = false;
-
-                        for (const option of options) {
-                            // Get the actual answer text from the nested structure
-                            const answerTextElement = option.querySelector(".rc-CML") || option.querySelector("._bc4egv") || option;
-                            const optionText = answerTextElement.innerText?.cleanup() || "";
-
-                            console.log(`Checking option: "${optionText}"`);
-
-                            // Check if this option matches the correct answer
-                            // Use more strict matching to avoid false positives
-                            const isMatch = optionText.length > 2 && (
-                                (correctAnswer.length > 5 && optionText.includes(correctAnswer)) ||
-                                (optionText.length > 5 && correctAnswer.includes(optionText)) ||
-                                correctAnswer.toLowerCase() === optionText.toLowerCase()
-                            );
-
-                            if (isMatch && !foundMatch) {
-                                // Find the radio/checkbox input in this option
-                                const input = option.querySelector("input[type='radio'], input[type='checkbox']");
-                                if (input && !input.checked) {
-                                    console.log(`✓ Clicking option: "${optionText}"`);
-                                    input.click();
-                                    foundMatch = true; // Only click one option per question
-
-                                    // Visual feedback
-                                    addBadgeToLabel(option, "Gemini");
-                                }
-                            }
-                        }
-
-                        // Handle textarea inputs
-                        const textareas = part.querySelectorAll("textarea");
-                        if (textareas.length > 0) {
-                            textareas.forEach(textarea => {
-                                textarea.value = match.definition;
-                                textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                            });
-                        }
-                    }
-                }
-                toast.success("Answers applied! Please verify before submitting.");
-            }
-
-            // Auto Submit if configured
-            const { isAutoSubmitQuiz } = await chrome.storage.local.get("isAutoSubmitQuiz");
-            if (isAutoSubmitQuiz) {
-                await autoSubmitQuiz();
+            if (isSequentialType) {
+                // Sequential type: one question at a time
+                await handleSequentialQuiz(setLoadingStatus);
+            } else {
+                // List type: all questions visible
+                await handleListQuiz(setLoadingStatus);
             }
 
         } catch (e) {
             console.error(e);
-            toast.error("Quiz Solver encountered an error.");
+            toast.error("Quiz Solver encountered an error: " + e.message);
         } finally {
             setLoadingStatus(prev => ({...prev, isLoadingQuiz: false}));
+        }
+    };
+
+    /**
+     * Handle list-type quiz (all questions visible at once)
+     */
+    const handleListQuiz = async (setLoadingStatus) => {
+        console.log('Handling list-type quiz...');
+
+        // Find all question containers
+        const questionContainers = document.querySelectorAll('div[role="group"][data-testid^="part-"]');
+        
+        if (questionContainers.length === 0) {
+            toast.error("Could not find quiz questions on this page.");
+            return;
+        }
+
+        console.log(`Found ${questionContainers.length} questions`);
+
+        // Extract all questions
+        const questions = [];
+        questionContainers.forEach((container, index) => {
+            const questionData = extractQuestionData(container, index + 1);
+            if (questionData) {
+                questions.push(questionData);
+            }
+        });
+
+        // Get answers from Gemini
+        const answers = await solveWithGemini(questions);
+
+        if (!answers) {
+            toast.error("Failed to get answers from Gemini");
+            return;
+        }
+
+        // Apply answers to all questions
+        for (let i = 0; i < questions.length; i++) {
+            const question = questions[i];
+            const answer = answers[i];
+            const container = questionContainers[i];
+
+            if (answer) {
+                applyAnswer(container, question, answer);
+            }
+        }
+
+        toast.success("All answers applied!");
+
+        // Auto Submit if configured
+        const { isAutoSubmitQuiz } = await chrome.storage.local.get("isAutoSubmitQuiz");
+        if (isAutoSubmitQuiz) {
+            await autoSubmitListQuiz();
+        }
+    };
+
+    /**
+     * Handle sequential-type quiz (one question at a time)
+     * CORRECTED FLOW: Answer → Wait 2s → Click "Check" → Wait 4s → Click "Next" or "Submit assignment"
+     */
+    const handleSequentialQuiz = async (setLoadingStatus) => {
+        console.log('Handling sequential-type quiz...');
+
+        let questionNumber = 1;
+        let continueLoop = true;
+
+        while (continueLoop) {
+            // Find current question container
+            const container = document.querySelector('div[role="group"][data-testid^="part-"]');
+            
+            if (!container) {
+                console.log('No more questions found');
+                break;
+            }
+
+            // Extract question data
+            const questionData = extractQuestionData(container, questionNumber);
+            
+            if (!questionData) {
+                console.log('Could not extract question data');
+                break;
+            }
+
+            // Get answer from Gemini
+            const answers = await solveWithGemini([questionData]);
+            
+            if (answers && answers[0]) {
+                applyAnswer(container, questionData, answers[0]);
+                toast.success(`Question ${questionNumber} answered`);
+            }
+
+            // Check if auto-submit is enabled
+            const { isAutoSubmitQuiz } = await chrome.storage.local.get("isAutoSubmitQuiz");
+            
+            if (!isAutoSubmitQuiz) {
+                console.log('Auto-submit disabled, stopping here');
+                toast.success('Answers applied. Please submit manually.');
+                break;
+            }
+
+            // Wait 2 seconds
+            console.log('Waiting 2 seconds...');
+            await wait(2000);
+
+            // Click "Check" button
+            let checkButton = Array.from(document.querySelectorAll('button')).find(btn => 
+                btn.textContent.trim() === 'Check'
+            );
+            
+            if (checkButton) {
+                console.log('Clicking Check button...');
+                checkButton.click();
+                
+                // Wait 4 seconds for button to change
+                console.log('Waiting 4 seconds for button to change...');
+                await wait(4000);
+            } else {
+                console.log('Check button not found');
+                break;
+            }
+
+            // After clicking Check and waiting, the button changes to either "Next" or "Submit assignment"
+            // Find the button again (it's the same button but with different text)
+            const nextButton = Array.from(document.querySelectorAll('button')).find(btn => 
+                btn.textContent.includes('Next')
+            );
+            const submitButton = Array.from(document.querySelectorAll('button')).find(btn => 
+                btn.textContent.includes('Submit assignment')
+            );
+
+            if (submitButton) {
+                console.log('Found "Submit assignment" button, clicking...');
+                submitButton.click();
+                
+                // Wait 1 second for honor code dialog
+                await wait(1000);
+                
+                // Click "Agree and submit" button in dialog
+                const agreeButton = document.querySelector('button[data-testid="dialog-submit-button"]');
+                if (agreeButton) {
+                    const buttonText = agreeButton.textContent;
+                    if (buttonText.includes('Agree')) {
+                        console.log('Clicking "Agree and submit" button...');
+                        agreeButton.click();
+                        toast.success('Quiz submitted successfully!');
+                    }
+                }
+                continueLoop = false;
+            } else if (nextButton) {
+                console.log('Found "Next" button, clicking...');
+                nextButton.click();
+                
+                // Wait 2 seconds before next question
+                await wait(2000);
+                questionNumber++;
+            } else {
+                console.log('No Next or Submit assignment button found after Check');
+                toast.warning('Could not find next action button. Please continue manually.');
+                continueLoop = false;
+            }
+        }
+    };
+
+    /**
+     * Extract question data from a container
+     */
+    const extractQuestionData = (container, questionNumber) => {
+        try {
+            // Get question text
+            const promptElement = container.querySelector('div[id^="prompt-"]');
+            const questionText = promptElement ? promptElement.innerText.trim() : '';
+
+            // Determine question type
+            const isMultipleChoice = container.querySelector('input[type="radio"]') !== null;
+            const isCheckbox = container.querySelector('input[type="checkbox"]') !== null;
+            const isTextbox = container.querySelector('textarea') !== null;
+
+            let type = 'textbox';
+            if (isMultipleChoice) type = 'multiple-choice';
+            else if (isCheckbox) type = 'select-all';
+
+            // Extract options for choice questions
+            const options = [];
+            if (isMultipleChoice || isCheckbox) {
+                const optionElements = container.querySelectorAll('.rc-Option');
+                optionElements.forEach(opt => {
+                    const optionTextElement = opt.querySelector('span._bc4egv .rc-CML');
+                    if (optionTextElement) {
+                        options.push(optionTextElement.innerText.trim());
+                    }
+                });
+            }
+
+            console.log(`Question ${questionNumber}: ${type}, ${options.length} options`);
+
+            return {
+                question: questionText,
+                type: type,
+                options: options,
+                number: questionNumber
+            };
+        } catch (e) {
+            console.error('Error extracting question data:', e);
+            return null;
+        }
+    };
+
+    /**
+     * Apply answer to a question container
+     */
+    const applyAnswer = (container, questionData, answerData) => {
+        try {
+            if (questionData.type === 'multiple-choice') {
+                // Find the option that matches the answer (exact match)
+                const optionElements = container.querySelectorAll('.rc-Option');
+                
+                for (const opt of optionElements) {
+                    const optionTextElement = opt.querySelector('span._bc4egv .rc-CML');
+                    if (optionTextElement) {
+                        const optionText = optionTextElement.innerText.trim();
+                        
+                        // Exact match required
+                        if (optionText === answerData.answer) {
+                            const input = opt.querySelector('input[type="radio"]');
+                            if (input && !input.checked) {
+                                input.click();
+                                addBadgeToLabel(opt, "Gemini");
+                                console.log(`✓ Selected: ${optionText}`);
+                                break;
+                            }
+                        }
+                    }
+                }
+            } else if (questionData.type === 'select-all') {
+                // Select all correct options
+                const correctAnswers = Array.isArray(answerData.answer) ? answerData.answer : [answerData.answer];
+                const optionElements = container.querySelectorAll('.rc-Option');
+                
+                for (const opt of optionElements) {
+                    const optionTextElement = opt.querySelector('span._bc4egv .rc-CML');
+                    if (optionTextElement) {
+                        const optionText = optionTextElement.innerText.trim();
+                        
+                        // Check if this option is in the correct answers
+                        if (correctAnswers.includes(optionText)) {
+                            const input = opt.querySelector('input[type="checkbox"]');
+                            if (input && !input.checked) {
+                                input.click();
+                                addBadgeToLabel(opt, "Gemini");
+                                console.log(`✓ Selected: ${optionText}`);
+                            }
+                        }
+                    }
+                }
+            } else if (questionData.type === 'textbox') {
+                // Extract answer from "Answer: [answer]" format
+                let finalAnswer = answerData.answer;
+                if (typeof finalAnswer === 'string' && finalAnswer.includes('Answer:')) {
+                    finalAnswer = finalAnswer.split('Answer:')[1].trim();
+                }
+                
+                const textarea = container.querySelector('textarea');
+                if (textarea) {
+                    textarea.value = finalAnswer;
+                    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                    textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                    console.log(`✓ Filled textbox: ${finalAnswer}`);
+                }
+            }
+        } catch (e) {
+            console.error('Error applying answer:', e);
+        }
+    };
+
+    /**
+     * Submit list-type quiz
+     */
+    const autoSubmitListQuiz = async () => {
+        try {
+            console.log('Starting list quiz submission...');
+
+            // Step 1: Check agreement checkbox
+            const checkbox = document.querySelector('input[id="agreement-checkbox-base"]');
+            if (checkbox && !checkbox.checked) {
+                console.log('Clicking agreement checkbox...');
+                checkbox.click();
+                toast.success('Agreement checkbox checked');
+            }
+
+            // Step 2: Wait 4 seconds
+            await wait(4000);
+
+            // Step 3: Click submit button
+            const submitBtn = document.querySelector('button[data-testid="submit-button"]');
+            if (submitBtn) {
+                console.log('Clicking submit button...');
+                submitBtn.click();
+                toast.success('Submit clicked, waiting for confirmation...');
+            } else {
+                toast.error('Submit button not found');
+                return;
+            }
+
+            // Step 4: Wait 2 seconds
+            await wait(2000);
+
+            // Step 5: Click dialog submit button
+            const dialogSubmitBtn = document.querySelector('button[data-testid="dialog-submit-button"]');
+            if (dialogSubmitBtn) {
+                console.log('Clicking dialog submit button...');
+                dialogSubmitBtn.click();
+                toast.success('Quiz submitted successfully!');
+            }
+
+        } catch (error) {
+            console.error('Auto-submit error:', error);
+            toast.error('Auto-submit failed: ' + error.message);
         }
     };
 
